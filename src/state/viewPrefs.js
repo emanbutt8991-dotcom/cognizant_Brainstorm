@@ -1,0 +1,96 @@
+/*
+  View preferences: which features and Command Center sections are shown, and
+  which vehicle the hero scene uses. These are per-browser display choices, so
+  they live in localStorage and never touch company records or plan limits.
+*/
+import { useSyncExternalStore } from 'react'
+
+const KEY = 'waymark.viewPrefs.v1'
+
+/** Feature modules. Each one is a page, a navigation entry and a Command Center tile. */
+export const FEATURES = [
+  { id: 'map', to: '/app/map', label: 'Supply Chain Map', icon: 'map', blurb: 'Suppliers, ports, warehouses and routes on one map.' },
+  { id: 'shipments', to: '/app/shipments', label: 'Shipments', icon: 'ship', blurb: 'Track, add and edit shipment records and events.' },
+  { id: 'simulator', to: '/app/simulator', label: 'Risk Simulator', icon: 'activity', blurb: 'Test disruptions and compare responses by cost and timing.' },
+  { id: 'canadian', to: '/app/canadian', label: 'Canadian Alternatives', icon: 'flag', blurb: 'Compare domestic suppliers for the same product.' },
+  { id: 'global', to: '/app/global', label: 'Global Alternatives', icon: 'globe', blurb: 'Compare sourcing countries side by side.' },
+  { id: 'sustainability', to: '/app/sustainability', label: 'Sustainability', icon: 'leaf', blurb: 'Transport emissions and responsible-sourcing records.' },
+  { id: 'reports', to: '/app/reports', label: 'Reports', icon: 'file', blurb: 'Build reports and export them as PDF or CSV.' },
+  { id: 'analyst', to: '/app/analyst', label: 'AI Trade Analyst', icon: 'sparkles', blurb: 'Pick shipments, suppliers or headlines and ask how they affect you.' },
+  { id: 'world', to: '/app/world', label: 'World Situation', icon: 'newspaper', blurb: 'Trade, shipping and disruption news, matched to your records.' },
+]
+
+/** Blocks on the Command Center itself. */
+export const SECTIONS = [
+  { id: 'hero', label: 'Hero scene', blurb: 'The animated 3D scene and shipment status card.' },
+  { id: 'shipmentStats', label: 'Network overview', blurb: 'Supplier, shipment, delay and alert counts.' },
+  { id: 'financeStats', label: 'Spend and footprint', blurb: 'Import spend, freight spend, emissions and sourcing share.' },
+  { id: 'alerts', label: 'Risk feed', blurb: 'Rule-based prompts for review, with a Resolve action on delays.' },
+  { id: 'activity', label: 'Activity feed', blurb: 'Needs the Shipments feature.' },
+  { id: 'featureTiles', label: 'Feature tiles', blurb: 'The shortcut tiles that open each feature.' },
+]
+
+export const VEHICLES = [
+  { id: 'ship', label: 'Ship', icon: 'ship', mode: 'sea' },
+  { id: 'plane', label: 'Airplane', icon: 'plane', mode: 'air' },
+  { id: 'train', label: 'Train', icon: 'train', mode: 'rail' },
+  { id: 'truck', label: 'Truck', icon: 'truck', mode: 'road' },
+]
+
+const allOn = (list) => Object.fromEntries(list.map((x) => [x.id, true]))
+
+export const DEFAULT_PREFS = { features: allOn(FEATURES), sections: allOn(SECTIONS), vehicle: 'ship' }
+
+function merge(stored) {
+  return {
+    features: { ...DEFAULT_PREFS.features, ...stored?.features },
+    sections: { ...DEFAULT_PREFS.sections, ...stored?.sections },
+    vehicle: VEHICLES.some((v) => v.id === stored?.vehicle) ? stored.vehicle : DEFAULT_PREFS.vehicle,
+  }
+}
+
+function read() {
+  try {
+    return merge(JSON.parse(localStorage.getItem(KEY)))
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
+let current = typeof localStorage === 'undefined' ? DEFAULT_PREFS : read()
+const listeners = new Set()
+
+function write(next) {
+  current = next
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next))
+  } catch {
+    // Storage can be blocked or full. The choice still applies for this visit.
+  }
+  listeners.forEach((fn) => fn())
+}
+
+function subscribe(fn) {
+  listeners.add(fn)
+  const onStorage = (e) => {
+    if (e.key !== KEY) return
+    current = read()
+    fn()
+  }
+  window.addEventListener('storage', onStorage)
+  return () => {
+    listeners.delete(fn)
+    window.removeEventListener('storage', onStorage)
+  }
+}
+
+export function useViewPrefs() {
+  const prefs = useSyncExternalStore(subscribe, () => current, () => DEFAULT_PREFS)
+  return {
+    prefs,
+    setFeature: (id, on) => write({ ...current, features: { ...current.features, [id]: on } }),
+    setSection: (id, on) => write({ ...current, sections: { ...current.sections, [id]: on } }),
+    setVehicle: (vehicle) => write({ ...current, vehicle }),
+    reset: () => write(DEFAULT_PREFS),
+  }
+}
