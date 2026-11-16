@@ -39,10 +39,13 @@ export const VEHICLES = [
 
 const allOn = (list) => Object.fromEntries(list.map((x) => [x.id, true]))
 
-export const DEFAULT_PREFS = { features: allOn(FEATURES), sections: allOn(SECTIONS), vehicle: 'ship' }
+export const TEXT_SIZES = [100, 115, 130, 150]
+export const DEFAULT_PREFS = { features: allOn(FEATURES), sections: allOn(SECTIONS), vehicle: 'ship', textSize: 100, speechRate: 1 }
 
 function merge(stored) {
   return {
+    textSize: TEXT_SIZES.includes(stored?.textSize) ? stored.textSize : 100,
+    speechRate: [0.75, 1, 1.25, 1.5].includes(stored?.speechRate) ? stored.speechRate : 1,
     features: { ...DEFAULT_PREFS.features, ...stored?.features },
     sections: { ...DEFAULT_PREFS.sections, ...stored?.sections },
     vehicle: VEHICLES.some((v) => v.id === stored?.vehicle) ? stored.vehicle : DEFAULT_PREFS.vehicle,
@@ -59,9 +62,14 @@ function read() {
 
 let current = typeof localStorage === 'undefined' ? DEFAULT_PREFS : read()
 const listeners = new Set()
+function applySize() {
+  if (typeof document !== 'undefined') document.documentElement.style.fontSize = `${current.textSize}%`
+}
+applySize()
 
 function write(next) {
   current = next
+  applySize()
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
   } catch {
@@ -75,6 +83,7 @@ function subscribe(fn) {
   const onStorage = (e) => {
     if (e.key !== KEY) return
     current = read()
+    applySize()
     fn()
   }
   window.addEventListener('storage', onStorage)
@@ -88,6 +97,8 @@ export function useViewPrefs() {
   const prefs = useSyncExternalStore(subscribe, () => current, () => DEFAULT_PREFS)
   return {
     prefs,
+    setTextSize: (textSize) => write({ ...current, textSize: TEXT_SIZES.includes(textSize) ? textSize : 100 }),
+    setSpeechRate: (speechRate) => write({ ...current, speechRate }),
     setFeature: (id, on) => write({ ...current, features: { ...current.features, [id]: on } }),
     setSection: (id, on) => write({ ...current, sections: { ...current.sections, [id]: on } }),
     setVehicle: (vehicle) => write({ ...current, vehicle }),

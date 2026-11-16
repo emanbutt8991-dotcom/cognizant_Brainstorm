@@ -132,7 +132,11 @@ export default function Simulator() {
         Test hypothetical disruptions on your own suppliers and costs. These are planning scenarios, not forecasts.
       </PageHeader>
 
-      <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Scenario type">
+      <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Scenario type" onKeyDown={(e) => {
+        const i = SCENARIO_TYPES.findIndex((t) => t.id === type)
+        const next = e.key === 'ArrowRight' ? (i + 1) % SCENARIO_TYPES.length : e.key === 'ArrowLeft' ? (i + SCENARIO_TYPES.length - 1) % SCENARIO_TYPES.length : e.key === 'Home' ? 0 : e.key === 'End' ? SCENARIO_TYPES.length - 1 : null
+        if (next !== null) { e.preventDefault(); choose(SCENARIO_TYPES[next].id); e.currentTarget.querySelectorAll('[role="tab"]')[next].focus() }
+      }}>
         {SCENARIO_TYPES.map((t) => {
           const available = t.basic || can('scenario.advanced')
           return (
@@ -140,6 +144,9 @@ export default function Simulator() {
               key={t.id}
               type="button"
               role="tab"
+              id={`scenario-tab-${t.id}`}
+              aria-controls="scenario-panel"
+              tabIndex={type === t.id ? 0 : -1}
               aria-selected={type === t.id}
               onClick={() => choose(t.id)}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium ${type === t.id ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
@@ -151,13 +158,14 @@ export default function Simulator() {
         })}
       </div>
 
+      <div role="tabpanel" id="scenario-panel" aria-labelledby={`scenario-tab-${type}`}>
       {locked ? (
         <LockedPanel feature="scenario.advanced">The Free tier covers tariff, shipping-price and supplier-delay scenarios.</LockedPanel>
       ) : (
         <>
           <div className="grid gap-4 xl:grid-cols-[19rem_1fr]">
             <div className="space-y-4">
-              <Card title="Scenario inputs" aside={<Badge tone="amber">Hypothetical</Badge>}>
+              <Card tour="feature-simulator" title="Scenario inputs" aside={<Badge tone="amber">Hypothetical</Badge>}>
                 <ScenarioParams type={type} params={params} set={set} model={model} />
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <NumberInput
@@ -226,7 +234,7 @@ export default function Simulator() {
                   <Slider label="Price difference" min={-20} max={40} step={1} unit="%" prefix={premiumPct > 0 ? '+' : ''} value={premiumPct} onChange={setPremiumPct} />
                 </div>
                 <StrategyChart strategies={result.strategies} lowestCostId={result.lowestCostId} />
-                <div className="mt-4 overflow-x-auto">
+                <div tabIndex={0} role="region" aria-label="Response comparison, scrollable" className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[42rem] text-sm">
                     <caption className="sr-only">Response comparison</caption>
                     <thead>
@@ -273,6 +281,7 @@ export default function Simulator() {
         </>
       )}
 
+      </div>
       <ConfirmModal
         open={Boolean(deleting)}
         title="Delete scenario"

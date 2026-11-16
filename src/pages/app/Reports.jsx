@@ -21,7 +21,7 @@ function ReportView({ report }) {
           {section.paragraphs?.map((p) => <p key={p} className="mt-1 text-sm text-slate-700">{p}</p>)}
           {section.bullets && <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-slate-700">{section.bullets.map((b) => <li key={b}>{b}</li>)}</ul>}
           {section.table && (
-            <div className="mt-2 overflow-x-auto">
+            <div tabIndex={0} role="region" aria-label={`${section.heading}, scrollable table`} className="mt-2 overflow-x-auto">
               <table className="w-full min-w-[30rem] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
@@ -93,7 +93,7 @@ export default function Reports() {
         Generated from your current records, with sources and timestamps. {counts.reports} of {limit('reports').toLocaleString('en-CA')} saved.
       </PageHeader>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="feature-reports" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {REPORT_TYPES.map((t) => {
           const allowed = !t.feature || can(t.feature)
           return (

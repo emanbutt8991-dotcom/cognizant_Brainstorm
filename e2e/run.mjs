@@ -27,6 +27,7 @@ let page
 let browserErrors = []
 
 async function step(name, fn) {
+  if (process.env.E2E_ONLY === 'accessibility' && !/Welcome page|Choose Maple Trail|Text size persists|Read aloud uses|Offline Help/.test(name)) return
   const before = browserErrors.length
   try {
     await fn()
@@ -36,7 +37,7 @@ async function step(name, fn) {
     console.log(`  ok   ${name}`)
   } catch (err) {
     results.push({ name, ok: false, error: err.message })
-    console.log(`  FAIL ${name}\n       ${err.message.split('\n')[0]}`)
+    console.log(`  FAIL ${name}\n       ${err.message}`)
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `fail-${results.length}.png`) }).catch(() => {})
   }
 }
@@ -693,6 +694,127 @@ async function main() {
     await page.waitForURL('**/app/analyst')
     await see('Port of Vancouver congestion grows as rail backlog builds')
     await see('Open article')
+  })
+
+  await step('Text size persists, Settings tabs deep link, and every app page fits at 150% on a phone', async () => {
+    await page.goto(BASE + '/app/settings?tab=display')
+    await page.getByRole('combobox', { name: 'Text size', exact: true }).last().selectOption('150')
+    await page.reload()
+    assert(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize === '24px'), 'Text size was not restored')
+    await page.setViewportSize({ width: 360, height: 780 })
+    for (const route of ['/app', '/app/map', '/app/shipments', '/app/simulator', '/app/canadian', '/app/global', '/app/sustainability', '/app/reports', '/app/analyst', '/app/world', '/app/settings?tab=profile', '/app/settings?tab=display', ...['products', 'suppliers', 'warehouses', 'financials', 'team', 'admin', 'plan'].map((tab) => `/app/settings?tab=${tab}`), '/app/shipments/mt-sh-2/resolve']) {
+      await page.goto(BASE + route)
+      await page.locator('main h1').waitFor()
+      await page.waitForTimeout(300)
+      const overflow = await page.evaluate(() => ({ extra: document.documentElement.scrollWidth - innerWidth, elements: [...document.querySelectorAll('main *')].filter((el) => el.getBoundingClientRect().right > innerWidth + 1 && !el.closest('.overflow-x-auto')).slice(0, 5).map((el) => `${el.tagName}.${el.className}`) }))
+      if (route === '/app') await shot('a11y-phone-150')
+      assert(overflow.extra <= 1, `${route}: ${overflow.extra}px sideways overflow; ${overflow.elements.join(', ')}`)
+    }
+    await page.goto(BASE + '/app/shipments')
+    await button('Add shipment', { exact: true }).click()
+    const shipmentForm = page.getByRole('dialog', { name: 'Add shipment', exact: true })
+    assert(await shipmentForm.evaluate((el) => el.scrollWidth <= el.clientWidth + 1), 'Shipment form overflows at 150%')
+    await page.keyboard.press('Escape')
+    await page.getByRole('combobox', { name: 'Text size', exact: true }).first().selectOption('100')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(BASE + '/app/settings?tab=profile')
+    await page.getByRole('tab', { name: 'Profile', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    await page.waitForFunction(() => document.getElementById('tab-display')?.getAttribute('aria-selected') === 'true')
+    assert(await page.getByRole('tab', { name: 'Display', exact: true }).getAttribute('aria-selected') === 'true', 'Settings tabs do not support arrow keys')
+    await page.goto(BASE + '/app/shipments')
+    await page.locator('main h1').waitFor()
+    await page.waitForFunction(() => document.activeElement?.tagName === 'H1')
+    await page.locator('tbody tr[tabindex="0"]').first().focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('dialog', { name: 'Shipment details', exact: true }).waitFor()
+    await page.keyboard.press('Escape')
+    assert(await page.getByRole('dialog', { name: 'Shipment details', exact: true }).count() === 0 || !(await page.getByRole('dialog', { name: 'Shipment details', exact: true }).isVisible()), 'Escape did not close shipment details')
+  })
+
+  await step('Read aloud uses meaningful page content, device voices, pause, resume, speed and stop', async () => {
+    await page.addInitScript(() => {
+      window.__speech = { spoken: [], paused: 0, resumed: 0, stopped: 0 }
+      window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text } }
+      Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: {
+        getVoices: () => [{ name: 'Device test voice', lang: 'en-CA', localService: true }],
+        speak: (u) => { window.__activeUtterance = u; window.__speech.spoken.push({ text: u.text, rate: u.rate }) },
+        pause: () => window.__speech.paused++, resume: () => window.__speech.resumed++, cancel: () => window.__speech.stopped++,
+      } })
+    })
+    await page.goto(BASE + '/app')
+    await page.locator('main h1').waitFor()
+    await button('Read aloud', { exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Read aloud', exact: true })
+    await dialog.getByRole('button', { name: 'Play', exact: true }).click()
+    assert(await page.evaluate(() => window.__speech.spoken[0].text.includes('Command Center')), 'Speech did not begin with page content')
+    await dialog.getByRole('button', { name: 'Pause', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Play', exact: true }).click()
+    assert(await page.evaluate(() => window.__speech.paused === 1 && window.__speech.resumed === 1), 'Pause/resume were not called')
+    await dialog.getByRole('combobox', { name: 'Reading speed' }).selectOption('1.25')
+    await dialog.getByRole('combobox', { name: 'Content to read' }).selectOption({ label: 'Current risk feed' })
+    await dialog.getByRole('button', { name: 'Play', exact: true }).click()
+    assert(await page.evaluate(() => window.__speech.spoken.at(-1).rate === 1.25 && window.__speech.spoken.at(-1).text.includes('Current risk feed')), 'Section selection or speed was ignored')
+    await dialog.getByRole('button', { name: 'Stop', exact: true }).click()
+    await dialog.getByRole('status').getByText('Stopped', { exact: true }).waitFor()
+    await page.keyboard.press('Escape')
+    assert(!(await dialog.isVisible()), 'Escape did not close read aloud')
+    await page.goto(BASE + '/app/shipments')
+    await button('Read aloud', { exact: true }).click()
+    await dialog.getByRole('button', { name: 'Play', exact: true }).click()
+    await page.evaluate(() => {
+      for (let i = 0; i < 300; i++) {
+        const utterance = window.__activeUtterance
+        utterance?.onend?.()
+        if (utterance === window.__activeUtterance) break
+      }
+    })
+    assert(await page.evaluate(() => /Shipment: MT-204/.test(window.__speech.spoken.map((s) => s.text).join(' ')) && /Status:/.test(window.__speech.spoken.map((s) => s.text).join(' '))), 'Spoken table rows lost their column labels')
+    await page.keyboard.press('Escape')
+    const noSpeech = await page.context().newPage()
+    await noSpeech.addInitScript(() => { Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined }); window.SpeechSynthesisUtterance = undefined })
+    await noSpeech.goto(BASE + '/app/settings?tab=display')
+    await noSpeech.getByText('Read aloud is unavailable because this browser does not support Web Speech.', { exact: false }).waitFor()
+    assert(await noSpeech.getByRole('button', { name: 'Read aloud', exact: true }).count() === 0, 'Unsupported speech control should be hidden')
+    await noSpeech.close()
+  })
+
+  await step('Offline Help matches questions, traps focus, tours across routes, and explains hidden targets', async () => {
+    await page.goto(BASE + '/app')
+    await button('Help', { exact: true }).click()
+    const help = page.getByRole('dialog', { name: 'Help and guided tours', exact: true })
+    await help.getByRole('textbox', { name: 'What would you like to do?' }).fill('how do I change my company name?')
+    await help.getByRole('button', { name: 'Find a guide' }).click()
+    const tour = page.getByRole('dialog', { name: 'Settings: profile', exact: true })
+    await tour.waitFor()
+    await page.waitForURL('**/app/settings?tab=profile')
+    await page.locator('.wm-tour-spotlight').waitFor()
+    await tour.getByRole('button', { name: 'End tour' }).focus()
+    await page.keyboard.press('Tab')
+    assert(await tour.getByRole('button', { name: 'Finish', exact: true }).evaluate((el) => el === document.activeElement), 'Tour focus escaped')
+    await page.keyboard.press('Escape')
+    await button('Help', { exact: true }).click()
+    await help.getByRole('textbox').fill('pizza recipes')
+    await help.getByRole('button', { name: 'Find a guide' }).click()
+    await help.getByText('No matching guide found. Browse the topics below.').waitFor()
+    await help.getByRole('button', { name: 'Change the dashboard vehicle', exact: true }).click()
+    const vehicleTour = page.getByRole('dialog', { name: 'Change the dashboard vehicle', exact: true })
+    await vehicleTour.getByRole('button', { name: 'Next', exact: true }).click()
+    await page.waitForURL('**/app/settings?tab=display')
+    await vehicleTour.getByRole('button', { name: 'Back', exact: true }).click()
+    await page.waitForURL('**/app')
+    await page.keyboard.press('Escape')
+    await page.goto(BASE + '/app/settings?tab=display')
+    await page.getByRole('switch', { name: 'Hero scene', exact: false }).focus()
+    await page.keyboard.press('Space')
+    await button('Help', { exact: true }).click()
+    await help.getByRole('textbox').fill('change dashboard scene vehicle')
+    await help.getByRole('button', { name: 'Find a guide' }).click()
+    await vehicleTour.getByText('This section is unavailable or hidden.', { exact: false }).waitFor()
+    await page.keyboard.press('Escape')
+    await page.goto(BASE + '/app/settings?tab=display')
+    await page.getByRole('switch', { name: 'Hero scene', exact: false }).focus()
+    await page.keyboard.press('Space')
   })
 
   await step('New pages have no sideways scroll on a phone', async () => {

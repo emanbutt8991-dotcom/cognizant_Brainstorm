@@ -76,6 +76,7 @@ function ContextPanel() {
   const [over, setOver] = useState(false)
   return (
     <Card
+      tour="feature-analyst"
       title="Context"
       subtitle={`${items.length} of ${MAX_ITEMS} items. Kept as you move around Waymark.`}
       aside={items.length > 0 && <button type="button" onClick={clear} className="text-sm font-semibold text-brand-800 hover:underline">Clear</button>}

@@ -43,7 +43,7 @@ export function CompareTable({ current, options }) {
     ['Labour documentation', (o) => (o.docsCompleteness == null ? 'Unknown' : `${percent(o.docsCompleteness, 0)} complete`)],
   ]
   return (
-    <div className="overflow-x-auto">
+    <div tabIndex={0} role="region" aria-label="Sourcing option comparison, scrollable" className="overflow-x-auto">
       <table className="w-full min-w-[44rem] text-sm" data-testid="compare-table">
         <caption className="sr-only">Sourcing option comparison</caption>
         <thead>
@@ -108,7 +108,7 @@ export function Recommendation({ current, options, basis }) {
         </ul>
       </div>
 
-      <div className="mt-3 overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Ranked options, scrollable" className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[32rem] text-sm">
           <caption className="sr-only">Ranked options</caption>
           <thead>

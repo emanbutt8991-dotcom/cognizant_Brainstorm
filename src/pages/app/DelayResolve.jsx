@@ -57,8 +57,8 @@ function StepBar({ current, done, onGo }) {
 function Panel({ title, children, defaultOpen = true }) {
   return (
     <details open={defaultOpen} className="group rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[15px] font-bold text-navy">
-        {title}
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[0.9375rem] font-bold text-navy">
+        <h2 className="text-inherit">{title}</h2>
         <Icon name="chevronDown" className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" />
       </summary>
       <div className="px-4 pb-4">{children}</div>
@@ -310,7 +310,7 @@ export default function DelayResolve() {
 
   return (
     <div>
-      {header}
+      <div data-tour="delay-assist">{header}</div>
       {previous && <Notice tone="good" className="mb-3">A decision is already on record: {previous.message} ({formatDate(previous.at)}). Approving again adds a new record.</Notice>}
       <StepBar current={step} done={done} onGo={goTo} />
 
@@ -415,7 +415,7 @@ export default function DelayResolve() {
               )}
 
               {plan.branch === 'inventory_unknown' ? (
-                <div className="mt-3 overflow-x-auto">
+                <div tabIndex={0} role="region" aria-label="Outcome range by option, scrollable" className="mt-3 overflow-x-auto">
                   <table className="w-full min-w-[26rem] text-left text-sm">
                     <caption className="sr-only">Outcome range by option</caption>
                     <thead><tr className="border-b border-slate-200 text-xs text-slate-500"><th className="py-2 pr-3 font-semibold">Option</th><th className="py-2 pr-3 font-semibold">If {days(plan.coverage.range[1])} of stock</th><th className="py-2 font-semibold">If no stock</th></tr></thead>
@@ -450,8 +450,10 @@ export default function DelayResolve() {
           {step === 'message' && option && (
             <Card title="Message and approval" subtitle="Review and edit the draft, send it from your own email, then record the decision.">
               <Tabs tabs={[{ id: 'supplier', label: 'To supplier' }, { id: 'manager', label: 'To manager' }]} active={audience} onChange={setAudience} />
+              <div role="tabpanel" id={`panel-${audience}`} aria-labelledby={`tab-${audience}`}>
               {drafts[audience]?.note && <Notice tone="warn" className="mb-2">{drafts[audience].note}</Notice>}
               <TextArea label={audience === 'supplier' ? 'Email to the supplier' : 'Summary for your manager'} rows={13} value={drafts[audience]?.text ?? ''} onChange={(text) => setDrafts((d) => ({ ...d, [audience]: { ...d[audience], text, edited: true } }))} />
+              </div>
               <p className="mt-1 text-xs text-slate-500">
                 Every number in this draft comes from the previous step's calculation. {drafts[audience]?.source === 'ai' ? 'Wording by AI, checked against those numbers.' : 'Written from a fixed template.'} Waymark never sends email: copy the text and send it yourself.
               </p>

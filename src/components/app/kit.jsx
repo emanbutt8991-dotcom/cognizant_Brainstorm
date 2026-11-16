@@ -9,13 +9,13 @@ import { PROVENANCE } from '../../engine/finance.js'
 import { useWorkspace } from '../../state/WorkspaceContext.jsx'
 import { Badge, Button, Icon } from '../ui.jsx'
 
-export function Card({ title, aside, children, className = '', padded = true, subtitle }) {
+export function Card({ title, aside, children, className = '', padded = true, subtitle, tour }) {
   return (
-    <section className={`min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 ${padded ? 'p-4 sm:p-5' : ''} ${className}`}>
+    <section data-tour={tour} className={`min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 ${padded ? 'p-4 sm:p-5' : ''} ${className}`}>
       {(title || aside) && (
         <div className={`flex flex-wrap items-start justify-between gap-2 ${padded ? 'mb-3' : 'px-4 pt-4 pb-3 sm:px-5'}`}>
           <div className="min-w-0">
-            {title && <h2 className="text-[15px] font-bold text-navy">{title}</h2>}
+            {title && <h2 className="text-[0.9375rem] font-bold text-navy">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
           </div>
           {aside}
@@ -84,7 +84,7 @@ export function MethodTag({ method }) {
 /** External reference with its retrieval time. */
 export function SourceLine({ source, at }) {
   return (
-    <span className="text-[11px] text-slate-500">
+    <span className="text-[0.6875rem] text-slate-500">
       Source: {source}
       {at ? ` · ${new Date(at).toLocaleString('en-CA', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
     </span>
@@ -99,7 +99,7 @@ export function Notice({ tone = 'info', children, className = '' }) {
     good: 'border-emerald-200 bg-emerald-50 text-emerald-900',
   }[tone]
   return (
-    <div role={tone === 'error' ? 'alert' : undefined} className={`flex gap-2 rounded-xl border px-3 py-2 text-sm ${style} ${className}`}>
+    <div role={tone === 'error' ? 'alert' : 'status'} className={`flex gap-2 rounded-xl border px-3 py-2 text-sm ${style} ${className}`}>
       <Icon name={tone === 'good' ? 'check' : tone === 'info' ? 'info' : 'alert'} className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="min-w-0">{children}</div>
     </div>
@@ -136,8 +136,12 @@ export function Modal({ open, onClose, title, children, footer, wide = false }) 
   const ref = useRef(null)
   useEffect(() => {
     const el = ref.current
+    const previous = document.activeElement
     if (open && !el.open) el.showModal()
     if (!open && el.open) el.close()
+    // Removing a dialog closes it natively. Calling close() in cleanup would
+    // also fire onClose during StrictMode's development effect replay.
+    return () => { if (previous?.isConnected) previous.focus() }
   }, [open])
   return (
     <dialog
@@ -194,10 +198,10 @@ export function Field({ label, hint, error, optional, children, className = '' }
         <label htmlFor={id} className="text-sm font-semibold text-navy">
           {label} {optional && <span className="font-normal text-slate-500">(optional)</span>}
         </label>
-        {hint && <p className="text-xs text-slate-500">{hint}</p>}
-        {error && <p className="mt-0.5 text-xs font-medium text-rose-700">{error}</p>}
+        {hint && <p id={`${id}-hint`} className="text-xs text-slate-500">{hint}</p>}
+        {error && <p id={`${id}-error`} role="alert" className="mt-0.5 text-xs font-medium text-rose-700">{error}</p>}
       </div>
-      <div className="mt-1">{children(id, error)}</div>
+      <div className="mt-1">{children(id, error, [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined)}</div>
     </div>
   )
 }
@@ -205,7 +209,7 @@ export function Field({ label, hint, error, optional, children, className = '' }
 export function TextInput({ label, hint, error, optional, value, onChange, className, ...rest }) {
   return (
     <Field label={label} hint={hint} error={error} optional={optional} className={className}>
-      {(id) => <input id={id} value={value ?? ''} aria-invalid={Boolean(error)} onChange={(e) => onChange(e.target.value)} className={`${control} ${controlState(error)}`} {...rest} />}
+      {(id, err, description) => <input id={id} aria-describedby={description} value={value ?? ''} aria-invalid={Boolean(error)} onChange={(e) => onChange(e.target.value)} className={`${control} ${controlState(error)}`} {...rest} />}
     </Field>
   )
 }
@@ -215,8 +219,9 @@ export function NumberInput({ label, hint, error, optional, value, onChange, cla
   const invalid = value !== '' && value != null && (!Number.isFinite(Number(value)) || Number(value) < min || (max != null && Number(value) > max))
   return (
     <Field label={label} hint={hint} optional={optional} className={className} error={error ?? (invalid ? `Enter a number${max != null ? ` from ${min} to ${max}` : ` of ${min} or more`}.` : undefined)}>
-      {(id, err) => (
+      {(id, err, description) => (
         <input
+          aria-describedby={description}
           id={id}
           type="number"
           inputMode="decimal"
@@ -237,8 +242,8 @@ export function NumberInput({ label, hint, error, optional, value, onChange, cla
 export function SelectInput({ label, hint, error, optional, value, onChange, options, placeholder = 'Select…', className, ...rest }) {
   return (
     <Field label={label} hint={hint} error={error} optional={optional} className={className}>
-      {(id) => (
-        <select id={id} value={value ?? ''} aria-invalid={Boolean(error)} onChange={(e) => onChange(e.target.value)} className={`${control} ${controlState(error)}`} {...rest}>
+      {(id, err, description) => (
+        <select id={id} aria-describedby={description} value={value ?? ''} aria-invalid={Boolean(error)} onChange={(e) => onChange(e.target.value)} className={`${control} ${controlState(error)}`} {...rest}>
           {placeholder !== null && <option value="">{placeholder}</option>}
           {options.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -252,7 +257,7 @@ export function SelectInput({ label, hint, error, optional, value, onChange, opt
 export function TextArea({ label, hint, optional, value, onChange, className, rows = 2, ...rest }) {
   return (
     <Field label={label} hint={hint} optional={optional} className={className}>
-      {(id) => <textarea id={id} rows={rows} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:ring-2 focus:ring-brand-200 focus:outline-none" {...rest} />}
+      {(id, err, description) => <textarea id={id} aria-describedby={description} rows={rows} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:ring-2 focus:ring-brand-200 focus:outline-none" {...rest} />}
     </Field>
   )
 }
@@ -291,12 +296,19 @@ export function Segmented({ label, value, onChange, options }) {
 
 export function Tabs({ tabs, active, onChange }) {
   return (
-    <div role="tablist" className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
+    <div role="tablist" aria-label="Page sections" className="mb-4 flex max-w-full gap-1 overflow-x-auto border-b border-slate-200" onKeyDown={(e) => {
+      const index = tabs.findIndex((t) => t.id === active)
+      const next = e.key === 'ArrowRight' ? (index + 1) % tabs.length : e.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : null
+      if (next !== null) { e.preventDefault(); onChange(tabs[next].id); e.currentTarget.querySelectorAll('[role="tab"]')[next].focus() }
+    }}>
       {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
           role="tab"
+          id={`tab-${t.id}`}
+          tabIndex={active === t.id ? 0 : -1}
+          aria-controls={`panel-${t.id}`}
           aria-selected={active === t.id}
           onClick={() => onChange(t.id)}
           className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap ${active === t.id ? 'border-brand-700 text-brand-800' : 'border-transparent text-slate-600 hover:text-navy'}`}
@@ -311,19 +323,19 @@ export function Tabs({ tabs, active, onChange }) {
 export function DataTable({ columns, rows, rowKey, caption, onRowClick, empty }) {
   if (!rows.length) return empty ?? null
   return (
-    <div className="relative overflow-x-auto">
+    <div role="region" aria-label={caption ?? 'Data table'} tabIndex={0} className="relative max-w-full overflow-x-auto">
       <table className="w-full min-w-[34rem] text-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs tracking-wide text-slate-500 uppercase">
             {columns.map((c) => (
-              <th key={c.key} scope="col" className={`px-3 py-2 font-semibold whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.header ?? c.label}</th>
+              <th key={c.key} scope="col" aria-sort={c.sort} className={`px-3 py-2 font-semibold whitespace-nowrap ${c.right ? 'text-right' : ''}`}>{c.header ?? c.label}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} onClick={onRowClick ? () => onRowClick(row) : undefined} className={`border-b border-slate-100 align-top ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}>
+            <tr key={rowKey(row)} tabIndex={onRowClick ? 0 : undefined} aria-description={onRowClick ? 'Press Enter to open details' : undefined} onKeyDown={onRowClick ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onRowClick(row) } } : undefined} onClick={onRowClick ? () => onRowClick(row) : undefined} className={`border-b border-slate-100 align-top ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : ''}`}>
               {columns.map((c) => (
                 <td key={c.key} className={`px-3 py-2.5 ${c.right ? 'text-right tabular-nums' : ''}`}>{c.render(row)}</td>
               ))}

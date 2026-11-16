@@ -123,7 +123,7 @@ export default function Sustainability() {
         </Card>
       </Gate>
 
-      <Card title="Responsible-sourcing documentation" subtitle="Verified means you hold evidence. Unknown is a gap in your records, not a finding about a supplier." className="mt-4">
+      <Card tour="feature-sustainability" title="Responsible-sourcing documentation" subtitle="Verified means you hold evidence. Unknown is a gap in your records, not a finding about a supplier." className="mt-4">
         <DataTable
           caption="Supplier documentation"
           rowKey={(s) => s.id}

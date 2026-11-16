@@ -68,7 +68,7 @@ export default function MapPage() {
         Suppliers, hubs and shipments. Routes are schematic estimates, and shipment markers come from schedules, not live tracking.
       </PageHeader>
 
-      <Card className="mb-3" padded>
+      <Card tour="feature-map" className="mb-3" padded>
         <div className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-7">
           <SelectInput label="Direction" placeholder={null} value={filters.direction} onChange={set('direction')} options={[{ value: 'all', label: 'All' }, { value: 'import', label: 'Import' }, { value: 'export', label: 'Export' }]} />
           <SelectInput label="Transport mode" placeholder={null} value={filters.mode} onChange={set('mode')} options={[{ value: 'all', label: 'All modes' }, ...MODES]} />

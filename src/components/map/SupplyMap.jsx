@@ -1,3 +1,4 @@
+import MapText from './MapText.jsx'
 /*
   The reusable Waymark map. Uses MapLibre with a self-contained vector basemap
   built from Natural Earth data, so it needs no tile service or API key.
@@ -224,11 +225,14 @@ export default function SupplyMap({ data, onSelect, className = 'h-[28rem]', lab
   }
 
   return (
+    <>
     <div role="region" aria-label={label} data-map-ready={ready} className={`relative overflow-hidden rounded-xl bg-[#0a1230] ${className}`}>
       {/* Inline size: MapLibre's stylesheet sets position:relative, which beats layered utilities. */}
       <div ref={container} style={{ width: '100%', height: '100%' }} />
       {!ready && <Skeleton className="absolute inset-0 rounded-none" />}
     </div>
+    <MapText data={data} onSelect={onSelect} />
+    </>
   )
 }
 

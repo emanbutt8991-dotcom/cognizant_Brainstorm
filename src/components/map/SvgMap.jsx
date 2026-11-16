@@ -1,3 +1,4 @@
+import MapText from './MapText.jsx'
 // Fallback renderer for devices without WebGL. Same data, drawn with d3-geo.
 import { useEffect, useMemo, useState } from 'react'
 import { geoEquirectangular, geoPath } from 'd3-geo'
@@ -27,6 +28,7 @@ export default function SvgMap({ data, onSelect, className, label }) {
   const path = useMemo(() => geoPath(projection), [projection])
 
   return (
+    <>
     <div role="region" aria-label={label} className={`relative overflow-hidden rounded-xl bg-[#0a1230] ${className}`}>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet">
         {land && <path d={path(land)} fill="#1e2c5c" />}
@@ -46,14 +48,16 @@ export default function SvgMap({ data, onSelect, className, label }) {
           const [x, y] = projection([n.lon, n.lat])
           const style = NODE_STYLES[n.kind] ?? NODE_STYLES.supplier
           return (
-            <g key={n.id} transform={`translate(${x} ${y})`} role="button" aria-label={n.label} onClick={() => onSelect?.({ type: 'node', node: n })} className="cursor-pointer">
+            <g key={n.id} transform={`translate(${x} ${y})`} role="button" tabIndex={onSelect ? 0 : undefined} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.({ type: 'node', node: n }) } }} aria-label={n.label} onClick={() => onSelect?.({ type: 'node', node: n })} className="cursor-pointer">
               <circle r="8" fill={style.color} stroke={n.affected ? ALERT_COLOR : '#fff'} strokeWidth="1.5" />
               <text textAnchor="middle" dy="3.5" fontSize="9" fontWeight="700" fill="#fff">{style.glyph}</text>
             </g>
           )
         })}
       </svg>
-      <p className="absolute bottom-1 left-2 text-[10px] text-slate-300">Simplified map: WebGL unavailable. Routes are schematic.</p>
+      <p className="absolute bottom-1 left-2 text-[0.625rem] text-slate-300">Simplified map: WebGL unavailable. Routes are schematic.</p>
     </div>
+    <MapText data={data} onSelect={onSelect} />
+    </>
   )
 }

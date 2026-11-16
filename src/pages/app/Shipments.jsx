@@ -100,7 +100,7 @@ export default function Shipments() {
   }, [model, filters, sort])
 
   const header = (key, label) => (
-    <button type="button" className="inline-flex items-center gap-1 font-semibold uppercase hover:text-navy" aria-sort={sort.key === key ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none'} onClick={() => setSort((s) => ({ key, dir: s.key === key ? -s.dir : 1 }))}>
+    <button type="button" className="inline-flex items-center gap-1 font-semibold uppercase hover:text-navy" onClick={() => setSort((s) => ({ key, dir: s.key === key ? -s.dir : 1 }))}>
       {label}
       {sort.key === key && <span aria-hidden="true">{sort.dir > 0 ? '↑' : '↓'}</span>}
     </button>
@@ -109,7 +109,7 @@ export default function Shipments() {
   const atLimit = counts.shipments >= limit('shipments')
 
   const columns = [
-    { key: 'reference', header: header('reference', 'Shipment'), render: (s) => <span className="font-semibold text-navy">{s.reference}</span> },
+    { key: 'reference', sort: sort.key === 'reference' ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none', header: header('reference', 'Shipment'), render: (s) => <span className="font-semibold text-navy">{s.reference}</span> },
     { key: 'party', label: 'Supplier or destination', render: (s) => s.supplier?.name ?? `Export: ${s.legs[s.legs.length - 1]?.to?.name ?? 'Unknown'}` },
     { key: 'mode', label: 'Mode', render: (s) => modeLabel(s.mode) },
     {
@@ -126,9 +126,9 @@ export default function Shipments() {
         )
       },
     },
-    { key: 'eta', header: header('eta', 'ETA'), render: (s) => <span className="whitespace-nowrap">{formatDate(s.eta)}</span> },
-    { key: 'cost', header: header('cost', 'Cost'), right: true, render: (s) => (s.costCad == null ? '—' : money(s.costCad)) },
-    { key: 'emissions', header: header('emissions', 'Est. CO₂e'), right: true, render: (s) => (s.emissions ? formatCo2e(s.emissions.co2eKg) : '—') },
+    { key: 'eta', sort: sort.key === 'eta' ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none', header: header('eta', 'ETA'), render: (s) => <span className="whitespace-nowrap">{formatDate(s.eta)}</span> },
+    { key: 'cost', sort: sort.key === 'cost' ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none', header: header('cost', 'Cost'), right: true, render: (s) => (s.costCad == null ? '—' : money(s.costCad)) },
+    { key: 'emissions', sort: sort.key === 'emissions' ? (sort.dir > 0 ? 'ascending' : 'descending') : 'none', header: header('emissions', 'Est. CO₂e'), right: true, render: (s) => (s.emissions ? formatCo2e(s.emissions.co2eKg) : '—') },
     {
       key: 'actions',
       label: <span className="sr-only">Actions</span>,
@@ -147,7 +147,7 @@ export default function Shipments() {
         title="Shipments"
         badge={isDemo && <DemoTag />}
         actions={
-          <Button disabled={atLimit} onClick={() => setForm({})} title={atLimit ? 'Plan limit reached' : undefined}>
+          <Button data-tour="add-shipment" disabled={atLimit} onClick={() => setForm({})} title={atLimit ? 'Plan limit reached' : undefined}>
             <Icon name="plus" className="h-4 w-4" /> Add shipment
           </Button>
         }
@@ -158,7 +158,7 @@ export default function Shipments() {
 
       {atLimit && <Notice tone="warn" className="mb-3">You have reached this plan’s shipment limit. Existing records stay available.</Notice>}
 
-      <Card className="mb-3">
+      <Card tour="feature-shipments" className="mb-3">
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
           <TextInput label="Search" placeholder="Reference, supplier, carrier" value={filters.query} onChange={set('query')} />
           <SelectInput label="Status" placeholder="All statuses" value={filters.status} onChange={set('status')} options={SHIPMENT_STATUSES} />

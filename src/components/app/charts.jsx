@@ -4,7 +4,7 @@ import { formatCo2e } from '../../../shared/emissions.js'
 import { MODE_COLORS } from '../map/mapData.js'
 
 const ACCENT = '#8b7bff'
-const axisTick = { fontSize: 11, fill: '#98a4cb' }
+const axisTick = { fontSize: '0.6875rem', fill: '#98a4cb' }
 
 function ChartTooltip({ active, payload, label, format }) {
   if (!active || !payload?.length) return null

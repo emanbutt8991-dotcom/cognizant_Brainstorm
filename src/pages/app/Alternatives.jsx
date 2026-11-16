@@ -199,7 +199,7 @@ export function CanadianAlternatives() {
       {isDemo && <Notice tone="info" className="mb-3">Leads in this demo are fictional examples. A real workspace shows only leads you add or public records you save.</Notice>}
       {!lanes.length ? <NoLanes /> : (
         <div className="space-y-4">
-          <Card>
+          <Card tour="feature-canadian">
             <div className="grid gap-3 md:grid-cols-2">
               <LanePicker lanes={lanes} value={productId} onChange={setProductId} />
               <TextInput label="Filter leads" optional placeholder="Name or location" value={filter} onChange={setFilter} />
@@ -220,7 +220,7 @@ export function CanadianAlternatives() {
                 {shown.map((o) => (
                   <Card key={o.id}>
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-navy">{o.name}</h3>
+                      <h2 className="font-bold text-navy">{o.name}</h2>
                       <Badge tone={o.trust === 'demo' ? 'amber' : o.trust === 'public' ? 'sky' : 'emerald'}>{o.trustLabel}</Badge>
                     </div>
                     <p className="text-sm text-slate-600">{o.location}</p>
@@ -296,7 +296,7 @@ export function GlobalAlternatives() {
       </PageHeader>
       {!lanes.length ? <NoLanes /> : (
         <div className="space-y-4">
-          <Card>
+          <Card tour="feature-global">
             <LanePicker lanes={lanes} value={productId} onChange={setProductId} />
             <p className="mt-3 text-sm font-semibold text-navy">Countries to compare <span className="font-normal text-slate-500">(up to {maxPicks})</span></p>
             <div className="mt-1 flex flex-wrap gap-1.5">

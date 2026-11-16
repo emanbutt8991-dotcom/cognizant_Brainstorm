@@ -6,6 +6,7 @@ import { FEATURES, useViewPrefs } from '../../state/viewPrefs.js'
 import { useWorkspace } from '../../state/WorkspaceContext.jsx'
 import { Badge, Icon, Logo } from '../ui.jsx'
 import { AnalystDock } from './AnalyzeButton.jsx'
+import AccessibilityTools from './Accessibility.jsx'
 import { ErrorBoundary, Notice, Segmented, Skeleton, ToastProvider } from './kit.jsx'
 
 /** The Command Center itself, then the enabled features. Settings has its own button in the top bar. */
@@ -51,7 +52,7 @@ function FeatureOff({ feature }) {
   return (
     <div className="mx-auto mt-10 max-w-lg">
       <Notice tone="info">
-        <p className="font-semibold">{feature.label} is turned off.</p>
+        <h1 tabIndex={-1} className="font-semibold">{feature.label} is turned off.</h1>
         <p className="mt-1">Your data is unchanged. Turn the feature back on to use this page.</p>
         <Link to="/app/settings?tab=display" className="mt-2 inline-block font-semibold underline">Open display settings</Link>
       </Notice>
@@ -67,8 +68,16 @@ export default function AppShell() {
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
-    document.querySelector('main h1')?.focus({ preventScroll: true })
-  }, [location.pathname])
+    const focus = () => {
+      const heading = document.querySelector('main h1')
+      if (heading) { heading.focus({ preventScroll: true }); return true }
+      return false
+    }
+    if (focus()) return
+    const observer = new MutationObserver(() => { if (focus()) observer.disconnect() })
+    observer.observe(document.getElementById('root'), { subtree: true, childList: true })
+    return () => observer.disconnect()
+  }, [location.pathname, status])
 
   if (!session) return <Navigate to="/demo" replace />
 
@@ -113,6 +122,7 @@ export default function AppShell() {
   return (
     <ToastProvider>
       <div className="wm-app">
+        <a href="#app-content" className="wm-skip-link">Skip to content</a>
         <header className="wm-topbar sticky top-0 z-20 border-b border-slate-200 pt-[env(safe-area-inset-top)] print:hidden">
           <div className="mx-auto flex min-h-14 max-w-[100rem] flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 sm:px-6">
             <Link to="/app" aria-label="Waymark Command Center" className="flex shrink-0 items-center gap-3">
@@ -133,10 +143,11 @@ export default function AppShell() {
             {isLocal && <Badge tone="sky">Local workspace: this browser only</Badge>}
             {company.sampleData && <Badge tone="amber">Sample data: fictional company</Badge>}
             {!isDemo && <Badge tone="emerald">{PLANS[plan].name} plan</Badge>}
-            <div className="flex items-center gap-1">
+            <AccessibilityTools />
+            <div className="flex max-w-full flex-wrap items-center gap-1">
               <Link to="/app#alerts" aria-label={`${alertCount} risk alerts`} className="relative rounded-lg p-1.5 text-slate-600 hover:bg-white/5 hover:text-white">
                 <Icon name="bell" className="h-5 w-5" />
-                {alertCount > 0 && <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{alertCount}</span>}
+                {alertCount > 0 && <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[0.625rem] font-bold text-white">{alertCount}</span>}
               </Link>
               <Link to="/app/settings" aria-label="Settings" title="Settings" className="rounded-lg p-1.5 text-slate-600 hover:bg-white/5 hover:text-white">
                 <Icon name="settings" className="h-5 w-5" />
@@ -150,7 +161,7 @@ export default function AppShell() {
           {showStrip && <div className="mx-auto max-w-[100rem]"><NavStrip /></div>}
         </header>
 
-        <main className="mx-auto max-w-[100rem] px-4 py-5 sm:px-6 print:p-0">
+        <main id="app-content" data-tour="page-content" tabIndex={-1} className="mx-auto max-w-[100rem] px-4 py-5 sm:px-6 print:p-0">
           <ErrorBoundary resetKey={location.pathname}>
             <Suspense fallback={<Skeleton className="h-96" />}>
               {offFeature ? <FeatureOff feature={offFeature} /> : <Outlet />}

@@ -86,7 +86,7 @@ function ArticleCard({ article, featured = false }) {
         <Badge tone={label.tone}>{label.label}</Badge>
         {x.signals.topics.slice(0, 2).map((t) => <Badge key={t.id} tone="slate">{t.label}</Badge>)}
       </div>
-      <h3 className={`mt-2 font-bold break-words text-navy ${featured ? 'text-base' : 'text-[15px]'}`}>
+      <h3 className={`mt-2 font-bold break-words text-navy ${featured ? 'text-base' : 'text-[0.9375rem]'}`}>
         <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{article.title}</a>
       </h3>
       <p className="mt-1 text-xs text-slate-500">
@@ -197,14 +197,19 @@ export default function WorldSituation() {
         Trade, shipping and disruption headlines from the last week, matched to your suppliers and shipments. A match shows possible exposure, never a confirmed effect.
       </PageHeader>
 
-      <div className="wm-strip mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="News category">
+      <div data-tour="feature-world" className="wm-strip mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="News category" onKeyDown={(e) => {
+        const i = CATEGORIES.findIndex((c) => c.value === category)
+        const next = e.key === 'ArrowRight' ? (i + 1) % CATEGORIES.length : e.key === 'ArrowLeft' ? (i + CATEGORIES.length - 1) % CATEGORIES.length : e.key === 'Home' ? 0 : e.key === 'End' ? CATEGORIES.length - 1 : null
+        if (next !== null) { e.preventDefault(); setCategory(CATEGORIES[next].value); e.currentTarget.querySelectorAll('[role="tab"]')[next].focus() }
+      }}>
         {CATEGORIES.map((c) => (
-          <button key={c.value} type="button" role="tab" aria-selected={category === c.value} onClick={() => setCategory(c.value)} className={`min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold whitespace-nowrap ${category === c.value ? 'border-brand-600 bg-brand-700 text-white' : 'border-slate-200 text-slate-700 hover:border-brand-400'}`}>
+          <button key={c.value} type="button" role="tab" id={`news-tab-${c.value}`} aria-controls="news-panel" tabIndex={category === c.value ? 0 : -1} aria-selected={category === c.value} onClick={() => setCategory(c.value)} className={`min-h-9 shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold whitespace-nowrap ${category === c.value ? 'border-brand-600 bg-brand-700 text-white' : 'border-slate-200 text-slate-700 hover:border-brand-400'}`}>
             {c.label}
           </button>
         ))}
       </div>
 
+      <div id="news-panel" role="tabpanel" aria-labelledby={`news-tab-${category}`}>
       {state.error && (
         <Notice tone="warn" className="mb-3">
           <p className="font-semibold">Headlines could not be refreshed.</p>
@@ -276,6 +281,7 @@ export default function WorldSituation() {
           </div>
         </>
       )}
+      </div>
     </div>
   )
 }

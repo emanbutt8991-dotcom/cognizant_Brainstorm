@@ -97,7 +97,7 @@ export function HsCodeField({ product, industry, onChange }) {
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 flex gap-1 text-[11px] text-amber-800"><Icon name="alert" className="h-3.5 w-3.5 shrink-0" /> {HS_CONFIDENCE_NOTE}</p>
+          <p className="mt-1.5 flex gap-1 text-[0.6875rem] text-amber-800"><Icon name="alert" className="h-3.5 w-3.5 shrink-0" /> {HS_CONFIDENCE_NOTE}</p>
         </div>
       )}
     </div>

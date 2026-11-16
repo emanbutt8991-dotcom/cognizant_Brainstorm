@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { AccessibilitySettings } from '../../components/app/Accessibility.jsx'
+import { SETTINGS_TABS } from '../../help/topics.js'
 import { Link, useSearchParams } from 'react-router-dom'
 import { formatCo2e } from '../../../shared/emissions.js'
 import { PLANS, PLAN_ORDER } from '../../../shared/entitlements.js'
@@ -301,7 +303,7 @@ function Toggle({ label, blurb, checked, onChange, icon }) {
         <span className="block text-sm font-semibold text-navy">{label}</span>
         <span className="block text-xs text-slate-500">{blurb}</span>
       </span>
-      <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <input type="checkbox" role="switch" aria-label={label} checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
       <span aria-hidden="true" className={`relative h-6 w-11 shrink-0 rounded-full transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-500 ${checked ? 'bg-brand-700' : 'bg-slate-300'}`}>
         <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : ''}`} />
       </span>
@@ -317,6 +319,7 @@ function DisplayTab() {
   const needs = { activity: 'shipments' }
   return (
     <div className="space-y-3">
+      <AccessibilitySettings />
       <Notice tone="info">These choices change what this browser shows. They are saved here only, and they never delete data or change your plan.</Notice>
       <div className="grid gap-3 lg:grid-cols-2">
         <Card title="Features" subtitle="Turning a feature off hides its tile, its menu entry and its page.">
@@ -336,7 +339,7 @@ function DisplayTab() {
             </div>
           </Card>
           <Card title="Hero vehicle" subtitle="The 3D model shown in the hero scene. It can also be changed on the Command Center.">
-            <Segmented label="Hero vehicle" value={prefs.vehicle} onChange={setVehicle} options={VEHICLES.map((v) => ({ value: v.id, label: v.label }))} />
+            <div data-tour="display-vehicle"><Segmented label="Hero vehicle" value={prefs.vehicle} onChange={setVehicle} options={VEHICLES.map((v) => ({ value: v.id, label: v.label }))} /></div>
           </Card>
           <Card title="Integrations" subtitle="Current status, reported by the server">
             {health === null ? (
@@ -360,8 +363,9 @@ function DisplayTab() {
 
 export default function Settings() {
   const { isDemo } = useWorkspace()
-  const [params] = useSearchParams()
-  const [tab, setTab] = useState(params.get('tab') === 'display' ? 'display' : 'profile')
+  const [params, setParams] = useSearchParams()
+  const tab = SETTINGS_TABS.includes(params.get('tab')) ? params.get('tab') : 'profile'
+  const setTab = (value) => setParams({ tab: value })
   const tabs = [
     { id: 'profile', label: 'Profile' }, { id: 'display', label: 'Display' }, { id: 'products', label: 'Products' }, { id: 'suppliers', label: 'Suppliers' }, { id: 'warehouses', label: 'Warehouses' },
     { id: 'financials', label: 'Financials' }, { id: 'team', label: 'Team' }, { id: 'admin', label: 'Admin' }, { id: 'plan', label: 'Plan' },
@@ -371,6 +375,7 @@ export default function Settings() {
       <Link to="/app" className="mb-2 inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-brand-800 hover:underline"><Icon name="arrowLeft" className="h-4 w-4" /> Back to Command Center</Link>
       <PageHeader title="Company Settings" badge={isDemo && <DemoTag />}>Edit your company, records and plan, and choose which features are shown. Changes update every screen.</PageHeader>
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} data-tour={`settings-${tab}`}>
       {tab === 'profile' && <ProfileTab />}
       {tab === 'display' && <DisplayTab />}
       {tab === 'products' && <ProductsTab />}
@@ -380,6 +385,7 @@ export default function Settings() {
       {tab === 'team' && <TeamTab />}
       {tab === 'admin' && <AdminTab />}
       {tab === 'plan' && <PlanTab />}
+      </div>
     </div>
   )
 }

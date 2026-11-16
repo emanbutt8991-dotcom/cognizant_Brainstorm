@@ -64,8 +64,8 @@ export default function CommandHero({ onOpenShipment }) {
 
         <div className="mt-auto flex flex-wrap items-end justify-between gap-4">
           <div className="pointer-events-auto">
-            <p id="scene-vehicle" className="mb-1.5 text-[11px] font-semibold tracking-wider text-slate-600 uppercase">Scene</p>
-            <div role="group" aria-labelledby="scene-vehicle" className="wm-glass inline-flex gap-1 rounded-xl p-1">
+            <p id="scene-vehicle" className="mb-1.5 text-[0.6875rem] font-semibold tracking-wider text-slate-600 uppercase">Scene</p>
+            <div data-tour="vehicle-switcher" role="group" aria-labelledby="scene-vehicle" className="wm-glass inline-flex flex-wrap gap-1 rounded-xl p-1">
               {VEHICLES.map((v) => (
                 <button
                   key={v.id}
@@ -80,13 +80,13 @@ export default function CommandHero({ onOpenShipment }) {
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 hidden text-[11px] text-slate-500 sm:block">Drag the scene to look around.</p>
+            <p className="mt-1.5 hidden text-[0.6875rem] text-slate-500 sm:block">Drag the scene to look around.</p>
           </div>
 
           <Glass className="w-full max-w-[17rem] p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold tracking-wider text-slate-600 uppercase">{modeLabel(vehicle.mode)} shipment status</p>
+                <p className="text-[0.6875rem] font-bold tracking-wider text-slate-600 uppercase">{modeLabel(vehicle.mode)} shipment status</p>
                 <p className="font-display mt-0.5 truncate text-xl font-extrabold text-white uppercase">{shipment ? statusLabel(shipment.status) : 'None active'}</p>
               </div>
               <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${shipment?.status === 'delayed' ? 'bg-rose-50 text-rose-700' : 'bg-brand-100 text-brand-300'}`}>

@@ -126,7 +126,7 @@
     border: 1.5px solid #fff;
     background: var(--node);
     color: #fff;
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 700;
     line-height: 1;
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
@@ -135,12 +135,12 @@
   .wm-node--airport {
     height: 17px;
     width: 17px;
-    font-size: 9px;
+    font-size: 0.5625rem;
   }
   .wm-node--hq {
     height: 26px;
     width: 26px;
-    font-size: 12px;
+    font-size: 0.75rem;
     background: #fff;
     color: #0b2239;
     border-color: #34d399;
@@ -491,4 +491,34 @@ a.wm-tile:hover {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* App accessibility: retain internal table/nav scrolling without page overflow. */
+.wm-app :focus-visible { outline: 2px solid #c4bbff; outline-offset: 3px; }
+.wm-app main, .wm-app form, .wm-app header > div { min-width: 0; }
+.wm-app { overflow-wrap: anywhere; }
+.wm-app dialog { max-width: calc(100vw - 2rem); }
+.wm-app button { white-space: normal; }
+.wm-app input, .wm-app select, .wm-app textarea { max-width: 100%; }
+.wm-app fieldset { min-width: 0; max-width: 100%; }
+.wm-app fieldset > .flex { flex-wrap: wrap; }
+.wm-app p.font-display.truncate, .wm-app .wm-tile > p.truncate { white-space: normal; overflow: visible; }
+.wm-skip-link { position: fixed; top: -10rem; left: 1rem; z-index: 100; background: #121a3a; color: white; padding: .7rem; border: 2px solid #c4bbff; }
+.wm-skip-link:focus { top: .5rem; }
+.wm-tour-layer { position: fixed; inset: 0; z-index: 80; min-height: 0; background: none; pointer-events: none; }
+.wm-tour-shade { position: fixed; inset: 0; background: rgb(5 8 22 / .45); pointer-events: auto; }
+.wm-tour-spotlight { position: fixed; border: 3px solid #c4bbff; border-radius: .6rem; box-shadow: 0 0 0 9999px rgb(5 8 22 / .25); pointer-events: none; }
+.wm-tour-panel { position: fixed; left: 50%; bottom: .5rem; transform: translateX(-50%); width: min(30rem, calc(100vw - 1rem)); max-height: 48dvh; overflow-y: auto; pointer-events: auto; }
+@media (max-width: 639px) {
+  .wm-app .grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+  .wm-app [class*="grid-cols-[8.5rem"] { grid-template-columns: minmax(0, 1fr); }
+  .wm-app [class*="min-w-52"] { min-width: 0; }
+  .wm-app [class*="min-w-56"] { min-width: 0; }
+  .wm-app [class*="min-w-44"] { min-width: 0; }
+  .wm-app [class*="grid-cols-[6.5rem"] { grid-template-columns: minmax(0, 1fr); }
+  .wm-app .wm-hero-title { font-size: 1.75rem; }
+  .wm-app .wm-topbar { position: relative; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wm-app *, .wm-app *::before, .wm-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
