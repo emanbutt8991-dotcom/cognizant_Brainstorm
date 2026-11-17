@@ -8,6 +8,8 @@
 */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { countryName } from '../../../shared/countries.js'
+import WeatherIntelligence from '../../components/app/WeatherIntelligence.jsx'
+import { Investigate } from '../../components/app/PlatformKit.jsx'
 import AnalyzeButton from '../../components/app/AnalyzeButton.jsx'
 import { Card, DemoTag, Empty, Notice, PageHeader, SelectInput, Skeleton, TextInput } from '../../components/app/kit.jsx'
 import { Badge, Button, Icon } from '../../components/ui.jsx'
@@ -103,6 +105,7 @@ function ArticleCard({ article, featured = false }) {
         <p className="mt-2 text-sm text-slate-600">{label.text}</p>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+        <Investigate task={`Investigate possible shipment exposure to reported event: ${article.title}. Source: ${article.url}`} />
         <AnalyzeButton type="news" id={article.url} extra={extra} open label="Analyze impact on my business" />
         <a href={article.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-brand-800 hover:underline">Read at source <Icon name="arrowRight" className="h-4 w-4" /></a>
       </div>
@@ -190,13 +193,14 @@ export default function WorldSituation() {
   return (
     <div>
       <PageHeader
-        title="World Situation"
+        title="Global Risk Intelligence"
         badge={isDemo && <DemoTag />}
         actions={<Button variant="secondary" onClick={() => load(category, true)} disabled={state.loading}><Icon name="refresh" className="h-4 w-4" /> Refresh</Button>}
       >
         Trade, shipping and disruption headlines from the last week, matched to your suppliers and shipments. A match shows possible exposure, never a confirmed effect.
       </PageHeader>
 
+      <WeatherIntelligence />
       <div data-tour="feature-world" className="wm-strip mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="News category" onKeyDown={(e) => {
         const i = CATEGORIES.findIndex((c) => c.value === category)
         const next = e.key === 'ArrowRight' ? (i + 1) % CATEGORIES.length : e.key === 'ArrowLeft' ? (i + CATEGORIES.length - 1) % CATEGORIES.length : e.key === 'Home' ? 0 : e.key === 'End' ? CATEGORIES.length - 1 : null

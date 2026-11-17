@@ -2,10 +2,11 @@
 import { Suspense, useEffect, useRef } from 'react'
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { PLANS, PLAN_ORDER } from '../../../shared/entitlements.js'
-import { FEATURES, useViewPrefs } from '../../state/viewPrefs.js'
+import { FEATURES, FEATURE_GROUPS, useViewPrefs } from '../../state/viewPrefs.js'
 import { useWorkspace } from '../../state/WorkspaceContext.jsx'
 import { Badge, Icon, Logo } from '../ui.jsx'
 import { AnalystDock } from './AnalyzeButton.jsx'
+import MonitorTrigger from './MonitorTrigger.jsx'
 import AccessibilityTools from './Accessibility.jsx'
 import { ErrorBoundary, Notice, Segmented, Skeleton, ToastProvider } from './kit.jsx'
 
@@ -40,7 +41,7 @@ function NavStrip() {
           }
         >
           <Icon name={item.icon} className="h-4 w-4" />
-          {item.label}
+          {item.group && <span className="text-[0.625rem] uppercase opacity-60">{FEATURE_GROUPS.find(g => g.id === item.group)?.label}</span>}{item.label}
         </NavLink>
       ))}
     </nav>
@@ -62,7 +63,7 @@ function FeatureOff({ feature }) {
 
 export default function AppShell() {
   const { session, status, loadError, ws, model, plan, isDemo, isLocal, setDemoTier, endSession, reload } = useWorkspace()
-  const { prefs } = useViewPrefs()
+  const { prefs, setTheme } = useViewPrefs()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -121,12 +122,13 @@ export default function AppShell() {
 
   return (
     <ToastProvider>
+      <MonitorTrigger />
       <div className="wm-app">
         <a href="#app-content" className="wm-skip-link">Skip to content</a>
         <header className="wm-topbar sticky top-0 z-20 border-b border-slate-200 pt-[env(safe-area-inset-top)] print:hidden">
           <div className="mx-auto flex min-h-14 max-w-[100rem] flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 sm:px-6">
             <Link to="/app" aria-label="Waymark Command Center" className="flex shrink-0 items-center gap-3">
-              <Logo tone="light" />
+              <Logo tone={prefs.theme === "light" ? "dark" : "light"} />
               <span className="hidden border-l border-slate-300 pl-3 text-xs font-semibold tracking-[0.2em] text-slate-600 uppercase md:inline">Command Center</span>
             </Link>
             <div className="hidden min-w-0 flex-1 pl-2 sm:block">
@@ -143,6 +145,9 @@ export default function AppShell() {
             {isLocal && <Badge tone="sky">Local workspace: this browser only</Badge>}
             {company.sampleData && <Badge tone="amber">Sample data: fictional company</Badge>}
             {!isDemo && <Badge tone="emerald">{PLANS[plan].name} plan</Badge>}
+            <button type="button" onClick={() => setTheme(prefs.theme === "light" ? "dark" : "light")} aria-label={prefs.theme === "light" ? "Switch to dark theme" : "Switch to light theme"} title={prefs.theme === "light" ? "Dark theme" : "Light theme"} className="rounded-lg p-1.5 text-slate-600 hover:bg-white/5 hover:text-white">
+              <Icon name={prefs.theme === "light" ? "moon" : "sun"} className="h-5 w-5" />
+            </button>
             <AccessibilityTools />
             <div className="flex max-w-full flex-wrap items-center gap-1">
               <Link to="/app#alerts" aria-label={`${alertCount} risk alerts`} className="relative rounded-lg p-1.5 text-slate-600 hover:bg-white/5 hover:text-white">

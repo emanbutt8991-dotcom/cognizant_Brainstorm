@@ -27,7 +27,7 @@ let page
 let browserErrors = []
 
 async function step(name, fn) {
-  if (process.env.E2E_ONLY === 'accessibility' && !/Welcome page|Choose Maple Trail|Text size persists|Read aloud uses|Offline Help/.test(name)) return
+  if (process.env.E2E_ONLY === 'accessibility' && !/Welcome page|Choose Maple Trail|Text size persists|Read aloud uses|Offline Help|Integration category sections/.test(name)) return
   const before = browserErrors.length
   try {
     await fn()
@@ -66,7 +66,7 @@ function assert(condition, message) {
 async function main() {
   assert(existsSync('dist/index.html'), 'dist/ is missing. Run npm run build first.')
   if (SHOTS) mkdirSync(SHOTS, { recursive: true })
-  const server = createApp({ ...loadConfig({}), rateLimitPerMinute: 5000 }).listen(PORT, '127.0.0.1')
+  const server = createApp({ ...loadConfig({}), dataDir: '', rateLimitPerMinute: 5000 }).listen(PORT, '127.0.0.1')
 
   const executablePath = BROWSERS.find((b) => existsSync(b))
   assert(executablePath, 'No Chromium-based browser found. Set E2E_BROWSER.')
@@ -77,6 +77,8 @@ async function main() {
   })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
   page = await context.newPage()
+  // Browser tests use a labeled deterministic fixture rather than requiring the public FX service.
+  await page.route('**/api/fx', route => route.fulfill({ json: { rates: { CAD: 1, USD: 1.36, EUR: 1.48, CNY: 0.19, VND: 0.000053 }, source: 'E2E fixture (not live Bank of Canada)', asOf: '2026-11-16', live: true } }))
   page.on('console', (m) => {
     // GDELT's rate-limit replies carry no CORS header, so the browser logs them. The news panel falls back to RSS.
     if (m.type() === 'error' && !/Failed to load resource|api\.gdeltproject\.org/.test(m.text())) browserErrors.push(m.text())
@@ -608,7 +610,7 @@ async function main() {
     const tiles = page.getByRole('navigation', { name: 'Application' })
     assert((await tiles.getByRole('link', { name: 'Company Settings' }).count()) === 0, 'Settings should not be a quick action')
     await tiles.getByRole('link', { name: 'AI Trade Analyst' }).waitFor()
-    await tiles.getByRole('link', { name: 'World Situation' }).waitFor()
+    await tiles.getByRole('link', { name: 'Global Risk Intelligence' }).waitFor()
     await page.getByRole('link', { name: 'Settings', exact: true }).waitFor()
     const feed = page.locator('#alerts .wm-scroll')
     assert((await feed.boundingBox()).height <= 300, 'Risk feed should be compact')
@@ -720,8 +722,8 @@ async function main() {
     await page.goto(BASE + '/app/settings?tab=profile')
     await page.getByRole('tab', { name: 'Profile', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => document.getElementById('tab-display')?.getAttribute('aria-selected') === 'true')
-    assert(await page.getByRole('tab', { name: 'Display', exact: true }).getAttribute('aria-selected') === 'true', 'Settings tabs do not support arrow keys')
+    await page.waitForFunction(() => document.getElementById('tab-products')?.getAttribute('aria-selected') === 'true')
+    assert(await page.getByRole('tab', { name: 'Products', exact: true }).getAttribute('aria-selected') === 'true', 'Settings tabs do not support arrow keys')
     await page.goto(BASE + '/app/shipments')
     await page.locator('main h1').waitFor()
     await page.waitForFunction(() => document.activeElement?.tagName === 'H1')
@@ -791,7 +793,16 @@ async function main() {
     await page.locator('.wm-tour-spotlight').waitFor()
     await tour.getByRole('button', { name: 'End tour' }).focus()
     await page.keyboard.press('Tab')
-    assert(await tour.getByRole('button', { name: 'Finish', exact: true }).evaluate((el) => el === document.activeElement), 'Tour focus escaped')
+    assert(await tour.getByRole('button', { name: 'Next', exact: true }).evaluate((el) => el === document.activeElement), 'Tour focus escaped')
+    await tour.getByText('Step 1 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByText('Step 2 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Back', exact: true }).click()
+    await tour.getByText('Step 1 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByText('Step 3 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Finish', exact: true }).waitFor()
     await page.keyboard.press('Escape')
     await button('Help', { exact: true }).click()
     await help.getByRole('textbox').fill('pizza recipes')
@@ -817,6 +828,57 @@ async function main() {
     await page.keyboard.press('Space')
   })
 
+  await step('Integration category sections group providers and home has no intelligence cards', async () => {
+    await page.goto(BASE + '/app')
+    await see('Waymark Command Center')
+    assert(await page.getByRole('heading', { name: 'Intelligence', exact: true }).count() === 0, 'Home intelligence card remains')
+    assert(await page.getByRole('heading', { name: 'Weather intelligence', exact: true }).count() === 0, 'Home weather card remains')
+    assert(await page.getByRole('link', { name: 'Integrations', exact: true }).count() === 0, 'Integrations should not be a dashboard feature')
+    await openSettings()
+    await page.getByRole('tab', { name: 'Integrations', exact: true }).click()
+    await page.waitForURL('**/app/settings?tab=integrations')
+    // AI models live under Settings → AI, not in the integrations list.
+    await page.getByRole('region', { name: 'Accounting and Financial', exact: true }).getByRole('heading', { name: 'QuickBooks Online', exact: true }).waitFor()
+    assert(await page.getByRole('heading', { name: 'Google Gemini', exact: true }).count() === 0, 'AI providers should not be listed under Integrations')
+    await page.getByLabel('Search', { exact: true }).fill('Shopify')
+    await page.getByRole('region', { name: 'CRM and Commerce', exact: true }).getByRole('heading', { name: 'Shopify', exact: true }).waitFor()
+    assert(await page.getByRole('region', { name: 'Accounting and Financial', exact: true }).count() === 0, 'Sections with no match should be hidden by search')
+    await page.getByLabel('Search', { exact: true }).fill('')
+    await page.getByRole('tab', { name: 'AI', exact: true }).click()
+    await page.waitForURL('**/app/settings?tab=ai')
+    const ai = page.getByRole('region', { name: 'AI models', exact: true })
+    for (const name of ['Claude', 'OpenAI GPT', 'Google Gemini', 'Grok']) await ai.getByRole('heading', { name, exact: true }).waitFor()
+    // Connecting asks for a key only, in a small dialog.
+    await ai.getByRole('button', { name: 'Add key' }).nth(2).click()
+    const keyDialog = page.getByRole('dialog', { name: 'Connect Google Gemini', exact: true })
+    await keyDialog.getByLabel('API key').waitFor()
+    assert(await keyDialog.getByLabel(/model/i).count() === 0, 'The key dialog should not ask for a model')
+    await keyDialog.getByRole('button', { name: 'Cancel' }).click()
+    // The light theme can be switched on and off from the top bar.
+    await button('Switch to light theme').click()
+    assert(await page.evaluate(() => document.documentElement.dataset.wmTheme) === 'light', 'Light theme was not applied')
+    await button('Switch to dark theme').click()
+    assert(await page.evaluate(() => document.documentElement.dataset.wmTheme) === 'dark', 'Dark theme was not restored')
+    await page.getByRole('tab', { name: 'Integrations', exact: true }).click()
+    await button('Help', { exact: true }).click()
+    const help = page.getByRole('dialog', { name: 'Help and guided tours', exact: true })
+    await help.getByRole('textbox').fill('')
+    await help.getByRole('button', { name: 'Find a guide', exact: true }).click()
+    await help.getByRole('button', { name: 'Settings: integrations', exact: true }).click()
+    const guide = page.getByRole('dialog', { name: 'Settings: integrations', exact: true })
+    await guide.getByText('Step 1 of 5', { exact: true }).waitFor()
+    await guide.getByRole('button', { name: 'Next', exact: true }).click()
+    await guide.getByText('Step 2 of 5', { exact: true }).waitFor()
+    await page.locator('.wm-tour-spotlight').waitFor()
+    await page.keyboard.press('Escape')
+    await page.goto(BASE + '/app/integrations?error=state')
+    await page.waitForURL(url => url.pathname === '/app/settings' && url.searchParams.get('tab') === 'integrations' && url.searchParams.get('error') === 'state')
+    await page.getByText('The sign-in link expired or was already used', { exact: false }).waitFor()
+    await page.setViewportSize({ width: 360, height: 780 })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Integration sections overflow on mobile')
+    await page.setViewportSize({ width: 1440, height: 900 })
+  })
+
   await step('New pages have no sideways scroll on a phone', async () => {
     await page.setViewportSize({ width: 360, height: 780 })
     for (const route of ['/app', '/app/analyst', '/app/world', '/app/shipments/mt-sh-2/resolve', '/demo']) {
@@ -825,6 +887,57 @@ async function main() {
       const extra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       assert(extra <= 1, `${route} scrolls sideways by ${extra}px at 360px wide`)
     }
+  })
+
+  await step('Waymark 3: all six routes render and retain mobile layout', async () => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(BASE + '/demo')
+    await button('Pro', {exact:true}).click()
+    await button('Open Maple Trail Home Goods').click()
+    await page.waitForURL('**/app')
+    for (const [route,title] of [['agent','AI Agent Hub'],['activity','Agent Activity'],['approvals','Approvals'],['integrations','Company Settings'],['inventory','Inventory & Orders'],['finance','Financial Intelligence']]) {
+      await page.goto(`${BASE}/app/${route}`)
+      await page.getByRole('heading',{level:1,name:title,exact:true}).waitFor()
+      await page.setViewportSize({width:360,height:780})
+      await page.waitForTimeout(300)
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth + 1), `${title} has mobile overflow`)
+      await page.setViewportSize({width:1440,height:900})
+    }
+  })
+
+  await step('Waymark 3: CSV import persists and appears in inventory', async () => {
+    await page.goto(BASE + '/app/integrations')
+    await button('Import with CSV import').click()
+    const dialog=page.getByRole('dialog',{name:'Import business records'})
+    await dialog.getByLabel('Record type').selectOption('products')
+    await dialog.locator('input[type=file]').setInputFiles({name:'inventory.csv',mimeType:'text/csv',buffer:Buffer.from('name,sku,onHand,unitCost,currency\nE2E imported inventory,E2E-01,20,12,CAD')})
+    await dialog.getByText('1 valid', {exact:false}).waitFor()
+    await dialog.getByRole('button',{name:'Confirm and import valid records'}).click()
+    await dialog.getByText('1 saved', {exact:false}).waitFor()
+    await dialog.getByRole('button',{name:'Close',exact:true}).click()
+    await page.goto(BASE + '/app/inventory')
+    await see('E2E imported inventory / E2E-01')
+    await page.reload();await see('E2E imported inventory / E2E-01')
+  })
+
+  await step('Waymark 3: guided planner demo produces evidence, saved history and an approval', async () => {
+    await page.goto(BASE + '/app/agent')
+    await button('Run guided demo',{exact:true}).click()
+    await page.getByRole('heading',{name:'Investigation: completed',exact:true}).waitFor({timeout:30000})
+    await see('get_weather_risk');await see('get_customer_orders')
+    await button('Save report to Reports').click()
+    await see('Report saved to Reports.')
+    await page.reload();await page.getByRole('button',{name:/Check weather disruption, compare alternatives/}).first().click()
+    await see('Investigation: completed')
+    await page.goto(BASE + '/app/approvals')
+    await button('Approve',{exact:true}).first().click()
+    await see('not_sent',{exact:true})
+    await page.goto(BASE + '/app/activity');await see('Monitoring configuration')
+    await page.goto(BASE + '/app/settings?tab=ai')
+    await page.getByLabel('Preferred provider').selectOption('')
+    await button('Save AI preferences').click();await see('AI preferences saved.')
+    await page.reload();assert(await page.getByLabel('Preferred provider').inputValue()==='', 'Planner preference did not persist')
+    await page.goto(BASE + '/app');await see('Waymark Command Center')
   })
 
   climatiq.close()

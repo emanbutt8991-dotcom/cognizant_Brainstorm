@@ -18,7 +18,10 @@ function activeHubs(model) {
   model.shipments.filter((s) => s.active).forEach((s) => {
     s.legs.forEach((leg) => {
       for (const end of [leg.from, leg.to]) {
-        if (end?.code) hubs.set(end.code, { ...end, count: (hubs.get(end.code)?.count ?? 0) + 1 })
+        if (end?.lat != null && end?.lon != null) {
+          const key = end.code ?? `${end.lat},${end.lon}`
+          hubs.set(key, { ...end, key, count: (hubs.get(key)?.count ?? 0) + 1 })
+        }
       }
     })
   })
@@ -28,7 +31,7 @@ function activeHubs(model) {
 export function useWeatherAlerts(model) {
   const [state, setState] = useState({ loading: true, alerts: [], error: null, checkedAt: null })
   const hubs = useMemo(() => (model ? activeHubs(model) : []), [model])
-  const key = hubs.map((h) => h.code).join(',')
+  const key = hubs.map((h) => h.key).join(',')
 
   useEffect(() => {
     let live = true
@@ -44,14 +47,18 @@ export function useWeatherAlerts(model) {
         loading: false,
         checkedAt: ok[0]?.weather.retrievedAt ?? null,
         checked: ok.length,
+        locations: ok.map(({hub,weather}) => ({ name: hub.name, days: weather.days, source: weather.source, at: weather.retrievedAt })),
+        unavailable: results.length - ok.length,
         error: ok.length ? null : 'Weather data is unavailable right now.',
         alerts: ok.flatMap(({ hub, weather }) =>
           weather.alerts.map((a) => ({
-            id: `wx-${hub.code}-${a.date}-${a.kind}`,
+            id: `wx-${hub.key}-${a.date}-${a.kind}`,
             type: 'weather',
             at: weather.retrievedAt,
             message: `${a.kind} forecast near ${hub.name} on ${a.date}`,
             source: weather.source,
+            date: a.date, hubCode: hub.code,
+            shipmentRefs: model.shipments.filter(s => s.active && s.legs.some(l => [l.from?.code, l.to?.code].includes(hub.code))).map(s => s.reference),
           })),
         ),
       })

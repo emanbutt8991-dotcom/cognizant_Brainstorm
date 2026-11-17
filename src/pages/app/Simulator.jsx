@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import WeatherIntelligence from '../../components/app/WeatherIntelligence.jsx'
 import { Link, useLocation } from 'react-router-dom'
 import { COUNTRIES, countryName } from '../../../shared/countries.js'
 import { formatCo2e } from '../../../shared/emissions.js'
@@ -132,6 +133,7 @@ export default function Simulator() {
         Test hypothetical disruptions on your own suppliers and costs. These are planning scenarios, not forecasts.
       </PageHeader>
 
+      <WeatherIntelligence onScenario={a => { choose('severe_weather'); setParams({ ...defaultParams('severe_weather', model), hub: a.hubCode, delayDays: 10 }) }} />
       <div className="mb-3 flex flex-wrap gap-1.5" role="tablist" aria-label="Scenario type" onKeyDown={(e) => {
         const i = SCENARIO_TYPES.findIndex((t) => t.id === type)
         const next = e.key === 'ArrowRight' ? (i + 1) % SCENARIO_TYPES.length : e.key === 'ArrowLeft' ? (i + SCENARIO_TYPES.length - 1) % SCENARIO_TYPES.length : e.key === 'Home' ? 0 : e.key === 'End' ? SCENARIO_TYPES.length - 1 : null

@@ -1,3 +1,4 @@
+import WeatherIntelligence from '../../components/app/WeatherIntelligence.jsx'
 import AnalyzeButton from '../../components/app/AnalyzeButton.jsx'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -68,6 +69,7 @@ export default function MapPage() {
         Suppliers, hubs and shipments. Routes are schematic estimates, and shipment markers come from schedules, not live tracking.
       </PageHeader>
 
+      <WeatherIntelligence shipment={shipment} />
       <Card tour="feature-map" className="mb-3" padded>
         <div className="grid gap-2.5 sm:grid-cols-3 lg:grid-cols-7">
           <SelectInput label="Direction" placeholder={null} value={filters.direction} onChange={set('direction')} options={[{ value: 'all', label: 'All' }, { value: 'import', label: 'Import' }, { value: 'export', label: 'Export' }]} />

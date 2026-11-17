@@ -32,7 +32,8 @@ describe('offline help retrieval', () => {
   it('covers every feature and Settings tab with stable targets', () => {
     for (const id of [...FEATURES.map((f) => f.id), ...SETTINGS_TABS.map((t) => `settings-${t}`), 'delay', 'add-shipment', 'vehicle', 'text-size', 'read-aloud', 'help']) {
       const topic = HELP_TOPICS.find((t) => t.id === id)
-      expect(topic.steps.length).toBeGreaterThan(0)
+      expect(topic.steps.length).toBeGreaterThanOrEqual(3)
+      expect(new Set(topic.steps.map(s => s.text)).size).toBe(topic.steps.length)
       expect(topic.steps.every((s) => s.to && s.target && s.text)).toBe(true)
     }
   })

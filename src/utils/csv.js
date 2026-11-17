@@ -27,6 +27,7 @@ export function parseCsv(text) {
       cell = ''
     } else cell += ch
   }
+  if (quoted) throw new Error('CSV contains an unterminated quoted field.')
   row.push(cell)
   if (row.some((c) => c.trim())) rows.push(row)
   return rows

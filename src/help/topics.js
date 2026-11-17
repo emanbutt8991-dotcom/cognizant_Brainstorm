@@ -1,8 +1,9 @@
 import { FEATURES } from '../state/viewPrefs.js'
+import { FEATURE_WORKFLOWS, SETTINGS_WORKFLOWS, EXTRA_WORKFLOWS } from './workflows.js'
 
 const step = (to, target, text) => ({ to, target, text })
-export const SETTINGS_TABS = ['profile', 'display', 'products', 'suppliers', 'warehouses', 'financials', 'team', 'admin', 'plan']
-export const HELP_TOPICS = [
+export const SETTINGS_TABS = ['integrations', 'ai', 'profile', 'display', 'products', 'suppliers', 'warehouses', 'financials', 'team', 'admin', 'plan']
+const TOPICS = [
   ...FEATURES.map((f) => ({ id: f.id, title: f.label, examples: [f.blurb], keywords: ({ map: 'routes ports warehouses location', shipments: 'track delivery order status', simulator: 'simulate disruption scenario compare responses', canadian: 'compare suppliers vendors domestic Canada', global: 'compare international countries sourcing', sustainability: 'emissions carbon CO2 footprint', reports: 'export PDF CSV download report', analyst: 'trade analysis questions context', world: 'news headlines disruption situation' })[f.id], feature: f.id, steps: [step(f.to, `feature-${f.id}`, f.blurb)] })),
   ...SETTINGS_TABS.map((tab) => ({ id: `settings-${tab}`, title: `Settings: ${tab}`, examples: [({ profile: 'how do I change my company name address', display: 'hide show features dashboard sections preferences', products: 'edit add products inventory', suppliers: 'edit supplier records documents', warehouses: 'add warehouse location', financials: 'edit spending financial assumptions', team: 'invite team members', admin: 'administration reset workspace', plan: 'change subscription tier plan' })[tab]], keywords: `settings ${tab}`, steps: [step(`/app/settings?tab=${tab}`, `settings-${tab}`, `Use the ${tab} settings to review and update these choices.`)] })),
   { id: 'delay', title: 'Delay Assist: resolve a late shipment', examples: ['where do I see delayed shipments', 'resolve late delivery', 'shipment is stuck what can I do'], keywords: 'delay late overdue resolve assistance', feature: 'shipments', steps: [step('/app', 'risk-feed', 'Find a delayed shipment in the risk feed. If hidden, enable Risk feed in Display settings.'), step('/app', 'delay-resolve', 'Choose Resolve (or Review) on a delayed shipment to open Delay Assist. It asks about your inventory and compares responses. Finish this tour to use the control.'), step('delay-assist', 'delay-assist', 'Delay Assist opens a delayed shipment. Review known facts, confirm days late and stock, compare options, then review the decision before approving. If no shipment is delayed, add or update one in Shipments first.')] },
@@ -12,3 +13,12 @@ export const HELP_TOPICS = [
   { id: 'read-aloud', title: 'Read aloud', examples: ['read this page to me', 'voice over speech listen pause speed'], keywords: 'accessibility audio narration screen reader', steps: [step('/app/settings?tab=display', 'read-aloud-settings', 'Use Read aloud in the top bar to choose a page or section, play, pause, stop and set speed. Screen readers can also use the skip link, headings and tables.')] },
   { id: 'help', title: 'Use guided Help', examples: ['how do guided tours work', 'help me navigate'], keywords: 'accessibility help guide tour', steps: [step('/app', 'help-button', 'Open Help, type a question or browse topics. Matching happens in this browser without an AI service. Use Next, Back, or Escape to end a tour.')] },
 ]
+
+export const HELP_TOPICS = TOPICS.map(topic => {
+  if (FEATURE_WORKFLOWS[topic.id]) return { ...topic, steps: FEATURE_WORKFLOWS[topic.id].map(([target, text]) => step(topic.steps[0].to, target, text)) }
+  const tab = topic.id.replace(/^settings-/, '')
+  if (tab === 'integrations') return { ...topic, examples: ['connect accounting CRM commerce logistics chat import providers'], steps: FEATURE_WORKFLOWS.integrations.map(([target, text]) => step('/app/settings?tab=integrations', target, text)) }
+  if (SETTINGS_WORKFLOWS[tab]) return { ...topic, examples: topic.examples.filter(Boolean), steps: SETTINGS_WORKFLOWS[tab].map(text => step(topic.steps[0].to, topic.steps[0].target, text)) }
+  const last = topic.steps.at(-1)
+  return { ...topic, steps: [...topic.steps, ...(EXTRA_WORKFLOWS[topic.id] ?? []).map(text => step(last.to, last.target, text))] }
+})

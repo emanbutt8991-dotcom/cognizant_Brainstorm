@@ -132,7 +132,9 @@ export function Spinner({ label = 'Loading' }) {
   )
 }
 
-export function Modal({ open, onClose, title, children, footer, wide = false }) {
+/** size: 'sm' for a single short form, 'md' (default), or 'lg' for tables and wizards. `wide` is the older name for 'lg'. */
+export function Modal({ open, onClose, title, children, footer, wide = false, size = wide ? 'lg' : 'md' }) {
+  const small = size === 'sm'
   const ref = useRef(null)
   useEffect(() => {
     const el = ref.current
@@ -148,18 +150,19 @@ export function Modal({ open, onClose, title, children, footer, wide = false }) 
       ref={ref}
       onClose={onClose}
       aria-label={title}
-      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] rounded-2xl bg-white p-0 text-slate-700 shadow-2xl ${wide ? 'max-w-3xl' : 'max-w-lg'}`}
+      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] rounded-2xl bg-white p-0 text-slate-700 shadow-2xl`}
+      style={{ '--wm-dialog-max': { sm: '24rem', md: '32rem', lg: '48rem' }[size] }}
     >
       {open && (
         <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3.5">
-            <h2 className="text-lg font-bold text-navy">{title}</h2>
+          <div className={`flex items-center justify-between gap-3 border-b border-slate-200 ${small ? 'px-4 py-2.5' : 'px-5 py-3.5'}`}>
+            <h2 className={`font-bold text-navy ${small ? 'text-base' : 'text-lg'}`}>{title}</h2>
             <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
-              <Icon name="close" />
+              <Icon name="close" className={small ? 'h-4 w-4' : 'h-5 w-5'} />
             </button>
           </div>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
-          {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 px-5 py-3">{footer}</div>}
+          <div className={`overflow-y-auto ${small ? 'px-4 py-3.5' : 'px-5 py-4'}`}>{children}</div>
+          {footer && <div className={`flex flex-wrap justify-end gap-2 border-t border-slate-200 ${small ? 'px-4 py-2.5' : 'px-5 py-3'}`}>{footer}</div>}
         </div>
       )}
     </dialog>

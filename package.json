@@ -1,8 +1,8 @@
 {
   "name": "waymark",
   "private": true,
-  "version": "2.0.0",
-  "description": "Waymark 2.0: supply-chain decision platform for Canadian SMEs.",
+  "version": "3.0.0",
+  "description": "Waymark 3.0: agentic supply-chain intelligence for Canadian SMEs.",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -33,7 +33,8 @@
     "recharts": "^3.10.1",
     "three": "^0.180.0",
     "topojson-client": "^3.1.0",
-    "world-atlas": "^2.0.2"
+    "world-atlas": "^2.0.2",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",

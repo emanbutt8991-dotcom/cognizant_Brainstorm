@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import AiPreferences from '../../components/app/AiPreferences.jsx'
+import Integrations from './Integrations.jsx'
 import { AccessibilitySettings } from '../../components/app/Accessibility.jsx'
 import { SETTINGS_TABS } from '../../help/topics.js'
 import { Link, useSearchParams } from 'react-router-dom'
 import { formatCo2e } from '../../../shared/emissions.js'
 import { PLANS, PLAN_ORDER } from '../../../shared/entitlements.js'
 import { FinanceEditor, INDUSTRIES, PROVINCES, ProductEditor, SupplierCsvImport, SupplierEditor, locateCanadianPlace, locateSupplier } from '../../components/app/companyForms.jsx'
-import { Card, ConfirmModal, DataTable, DemoTag, Empty, Gate, Notice, NumberInput, PageHeader, Segmented, SelectInput, Tabs, TextInput, useToast } from '../../components/app/kit.jsx'
+import { Card, ConfirmModal, DataTable, DemoTag, Empty, Gate, Notice, NumberInput, PageHeader, Segmented, SelectInput, TextInput, useToast } from '../../components/app/kit.jsx'
 import { Badge, Button, Icon } from '../../components/ui.jsx'
 import { DEMO_TEAM } from '../../data/demoCompanies.js'
 import { aggregateEmissions } from '../../engine/model.js'
@@ -313,12 +315,15 @@ function Toggle({ label, blurb, checked, onChange, icon }) {
 
 function DisplayTab() {
   const { health } = useWorkspace()
-  const { prefs, setFeature, setSection, setVehicle, reset } = useViewPrefs()
+  const { prefs, setFeature, setSection, setVehicle, setTheme, reset } = useViewPrefs()
   const toast = useToast()
   const on = health?.integrations ?? {}
   const needs = { activity: 'shipments' }
   return (
     <div className="space-y-3">
+      <Card title="Theme" subtitle="How the workspace looks. The sun and moon button in the top bar does the same.">
+        <Segmented label="Theme" value={prefs.theme} onChange={setTheme} options={[{ value: 'dark', label: 'Dark (purple)' }, { value: 'light', label: 'Light' }]} />
+      </Card>
       <AccessibilitySettings />
       <Notice tone="info">These choices change what this browser shows. They are saved here only, and they never delete data or change your plan.</Notice>
       <div className="grid gap-3 lg:grid-cols-2">
@@ -361,30 +366,104 @@ function DisplayTab() {
   )
 }
 
+// Settings are grouped by what they are about, so eleven tabs read as three short lists.
+const SETTINGS_GROUPS = [
+  { label: 'Company', tabs: [
+    { id: 'profile', label: 'Profile', icon: 'building' },
+    { id: 'products', label: 'Products', icon: 'box' },
+    { id: 'suppliers', label: 'Suppliers', icon: 'users' },
+    { id: 'warehouses', label: 'Warehouses', icon: 'pin' },
+    { id: 'financials', label: 'Financials', icon: 'card' },
+  ] },
+  { label: 'AI and data', tabs: [
+    { id: 'ai', label: 'AI', icon: 'sparkles' },
+    { id: 'integrations', label: 'Integrations', icon: 'layers' },
+  ] },
+  { label: 'Workspace', tabs: [
+    { id: 'display', label: 'Display', icon: 'settings' },
+    { id: 'team', label: 'Team', icon: 'user' },
+    { id: 'plan', label: 'Plan', icon: 'tag' },
+    { id: 'admin', label: 'Admin', icon: 'shield' },
+  ] },
+]
+const ALL_TABS = SETTINGS_GROUPS.flatMap((g) => g.tabs)
+const TAB_BLURBS = {
+  profile: 'Your company name, location and operating figures.',
+  products: 'What you buy and sell, with HS codes.',
+  suppliers: 'Supplier records, lanes and documentation.',
+  warehouses: 'Where shipments are delivered.',
+  financials: 'Spending figures used in every calculation.',
+  ai: 'Connect AI models and choose what they may see.',
+  display: 'Theme, text size, and which features are shown.',
+  team: 'Who can use this workspace.',
+  plan: 'Your plan and its limits.',
+  admin: 'Usage, records and workspace status.',
+}
+
+/** A sidebar on wide screens and a scrolling strip on narrow ones. One tablist either way. */
+function SettingsNav({ active, onChange }) {
+  const move = (e) => {
+    const index = ALL_TABS.findIndex((t) => t.id === active)
+    const next = ['ArrowDown', 'ArrowRight'].includes(e.key) ? (index + 1) % ALL_TABS.length : ['ArrowUp', 'ArrowLeft'].includes(e.key) ? (index + ALL_TABS.length - 1) % ALL_TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? ALL_TABS.length - 1 : null
+    if (next === null) return
+    e.preventDefault()
+    onChange(ALL_TABS[next].id)
+    e.currentTarget.querySelectorAll('[role="tab"]')[next].focus()
+  }
+  return (
+    <div role="tablist" aria-label="Settings sections" onKeyDown={move} className="wm-strip mb-4 flex gap-1 overflow-x-auto lg:sticky lg:top-24 lg:mb-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:rounded-2xl wm-sidenav lg:border lg:border-slate-200 lg:p-2">
+      {SETTINGS_GROUPS.map((group, g) => (
+        <div key={group.label} role="presentation" className={`flex shrink-0 gap-1 lg:flex-col lg:gap-0.5 ${g ? 'border-l border-slate-200 pl-1 lg:mt-2 lg:border-t lg:border-l-0 lg:pt-2 lg:pl-0' : ''}`}>
+          <p aria-hidden="true" className="hidden px-2.5 pb-1 text-[0.6875rem] font-semibold tracking-wider text-slate-500 uppercase lg:block">{group.label}</p>
+          {group.tabs.map((t) => {
+            const on = active === t.id
+            return (
+              <button
+                key={t.id} type="button" role="tab" id={`tab-${t.id}`} aria-controls={`panel-${t.id}`} aria-selected={on} tabIndex={on ? 0 : -1} onClick={() => onChange(t.id)}
+                className={`flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors ${on ? 'bg-brand-700 text-white' : 'text-slate-700 hover:bg-slate-100 hover:text-navy'}`}
+              >
+                <Icon name={t.icon} className="h-4 w-4 shrink-0" />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Settings() {
   const { isDemo } = useWorkspace()
   const [params, setParams] = useSearchParams()
   const tab = SETTINGS_TABS.includes(params.get('tab')) ? params.get('tab') : 'profile'
   const setTab = (value) => setParams({ tab: value })
-  const tabs = [
-    { id: 'profile', label: 'Profile' }, { id: 'display', label: 'Display' }, { id: 'products', label: 'Products' }, { id: 'suppliers', label: 'Suppliers' }, { id: 'warehouses', label: 'Warehouses' },
-    { id: 'financials', label: 'Financials' }, { id: 'team', label: 'Team' }, { id: 'admin', label: 'Admin' }, { id: 'plan', label: 'Plan' },
-  ]
+  const current = ALL_TABS.find((t) => t.id === tab)
   return (
     <div>
       <Link to="/app" className="mb-2 inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-brand-800 hover:underline"><Icon name="arrowLeft" className="h-4 w-4" /> Back to Command Center</Link>
       <PageHeader title="Company Settings" badge={isDemo && <DemoTag />}>Edit your company, records and plan, and choose which features are shown. Changes update every screen.</PageHeader>
-      <Tabs tabs={tabs} active={tab} onChange={setTab} />
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} data-tour={`settings-${tab}`}>
-      {tab === 'profile' && <ProfileTab />}
-      {tab === 'display' && <DisplayTab />}
-      {tab === 'products' && <ProductsTab />}
-      {tab === 'suppliers' && <SuppliersTab />}
-      {tab === 'warehouses' && <WarehousesTab />}
-      {tab === 'financials' && <FinanceTab />}
-      {tab === 'team' && <TeamTab />}
-      {tab === 'admin' && <AdminTab />}
-      {tab === 'plan' && <PlanTab />}
+      <div className="lg:grid lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <SettingsNav active={tab} onChange={setTab} />
+        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} data-tour={`settings-${tab}`} className="min-w-0">
+          {TAB_BLURBS[tab] && (
+            <div className="mb-3">
+              <h2 className="text-lg font-bold text-navy">{current.label}</h2>
+              <p className="text-sm text-slate-600">{TAB_BLURBS[tab]}</p>
+            </div>
+          )}
+          {tab === 'profile' && <ProfileTab />}
+          {tab === 'ai' && <AiPreferences />}
+          {tab === 'integrations' && <Integrations embedded />}
+          {tab === 'display' && <DisplayTab />}
+          {tab === 'products' && <ProductsTab />}
+          {tab === 'suppliers' && <SuppliersTab />}
+          {tab === 'warehouses' && <WarehousesTab />}
+          {tab === 'financials' && <FinanceTab />}
+          {tab === 'team' && <TeamTab />}
+          {tab === 'admin' && <AdminTab />}
+          {tab === 'plan' && <PlanTab />}
+        </div>
       </div>
     </div>
   )
