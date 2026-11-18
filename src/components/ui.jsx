@@ -1,3 +1,4 @@
+// Basic building blocks shared by every screen: icons, buttons, badges, the logo, headings and form styles.
 import { useId } from 'react'
 
 // Small shared UI pieces: icons, buttons, badges, logo, section headings, form fields.
@@ -9,6 +10,12 @@ const ICONS = {
   close: 'M6 6l12 12M18 6 6 18',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   chevronDown: 'M6 9l6 6 6-6',
+  chevronLeft: 'M15 6l-6 6 6 6',
+  chevronRight: 'M9 6l6 6-6 6',
+  mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
+  image: 'M4 5h16v14H4zM8 10a1.5 1.5 0 1 0 0-.01M20 16l-5-5-9 8',
+  languages: 'M4 5h9M8.5 3v2M6 5c0 4 3 7 6 8M11 5c0 4-3 8-7 9M13 21l4-9 4 9M14.5 18h5',
+  cloudRain: 'M7 15a4 4 0 1 1 1-7.9A5 5 0 0 1 18 9a3.5 3.5 0 0 1 0 7H7M8 18l-1 2M12 18l-1 2M16 18l-1 2',
   alert: 'M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
   info: 'M12 16v-4M12 8h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
   tag: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8ZM7.5 7.5h.01',
@@ -52,6 +59,9 @@ const ICONS = {
   card: 'M3 6h18v12H3zM3 10h18M7 15h4',
   plane: 'M10.5 21v-2l2-1.5V13l-9 3v-2l9-5.5V4a1.5 1.5 0 0 1 3 0v4.5l9 5.5v2l-9-3v4.5l2 1.5v2l-3.5-1-3.5 1Z',
   scale: 'M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0L5 7ZM19 7l-3 7a3 3 0 0 0 6 0l-3-7Z',
+  sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+  moon: 'M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z',
+  key: 'M15 7a4 4 0 1 1-3.9 5H8v3H5v3H2v-3l7.1-7.1A4 4 0 0 1 15 7ZM16 8h.01',
   pin: 'M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21ZM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
 }
 

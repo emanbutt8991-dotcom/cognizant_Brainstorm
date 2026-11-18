@@ -4,15 +4,19 @@ import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { buildHsIndex, parseHsChapters, suggestHsChapters } from '../src/utils/hsChapters.js'
 
+// Load the real chapter list once and build the search index the app uses.
 const text = readFileSync(fileURLToPath(new URL('../hs_code_list.txt', import.meta.url)), 'utf8')
 const chapters = parseHsChapters(text)
 const index = buildHsIndex(chapters)
+
+// A tiny test runner: each check throws on failure, which stops the script with a non-zero exit.
 let passed = 0
 const check = (name, fn) => {
   fn()
   passed++
   console.log('  ok -', name)
 }
+// Shortcuts: suggest chapters for a product, and read the top suggestion.
 const run = (category, description) => suggestHsChapters({ category, description }, index)
 const top = (r) => r.suggestions[0]?.chapter
 

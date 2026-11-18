@@ -1,3 +1,4 @@
+// Add / edit shipment dialog, with validation that runs before anything is saved.
 import { useMemo, useState } from 'react'
 import { COUNTRIES } from '../../../shared/countries.js'
 import { AIRPORTS, PORTS } from '../../../shared/places.js'

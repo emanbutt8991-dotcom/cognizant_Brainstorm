@@ -1,3 +1,4 @@
+// Public "Customer" page: who Waymark is for and what makes it different.
 import { useEffect, useMemo, useRef } from 'react'
 import { CUSTOMER_PAGE } from '../data/content.js'
 import { DEFAULT_STRATEGY, SAMPLE_COMPANY, SAMPLE_SCENARIO } from '../data/demoData.js'

@@ -1,3 +1,5 @@
+// Node API: security headers and CORS, plan enforcement, the Climatiq proxy, exchange rates,
+// news fallback, input validation, the AI explanation guard and tracking.
 import http from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../server/app.js'

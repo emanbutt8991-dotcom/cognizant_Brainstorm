@@ -23,6 +23,11 @@ const COLLECTION_LIMITS = { suppliers: 'suppliers', shipments: 'shipments', scen
 const WorkspaceContext = createContext(null)
 export const useWorkspace = () => useContext(WorkspaceContext)
 
+/** A demo/local session must never inherit the signed-in account's API identity. */
+export const sessionApiHeaders = (session, token, plan, key) => session?.mode === 'supabase' && token
+  ? { Authorization: `Bearer ${token}` }
+  : { 'X-Waymark-Preview-Plan': plan, ...(key ? { 'X-Waymark-Workspace': key } : {}) }
+
 export class PlanLimitError extends Error {
   constructor(key, limit, plan) {
     super(`The ${PLANS[plan].name} plan includes up to ${limit} ${key}.`)
@@ -46,6 +51,38 @@ function writeSession(session) {
     // Storage can be blocked. The session then lasts for this page view only.
   }
 }
+
+const DEVICE_KEY = 'waymark.deviceKey'
+
+/**
+ * Identifies this browser's demo and local workspaces to the API, which keeps
+ * their integration status, agent runs and approvals. It is a random value, not
+ * a credential for any outside service, and a signed-in session never uses it.
+ */
+function deviceKey() {
+  try {
+    let key = localStorage.getItem(DEVICE_KEY)
+    if (!/^[a-f0-9]{32}$/.test(key ?? '')) {
+      key = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('')
+      localStorage.setItem(DEVICE_KEY, key)
+    }
+    return key
+  } catch {
+    return null
+  }
+}
+
+const workspaceKey = (session) => {
+  const device = deviceKey()
+  const scope = session?.mode === 'demo' ? session.demoId : session?.mode === 'local' ? session.id : null
+  return device && scope ? `${device}-${scope}`.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 96) : null
+}
+
+/** The records the API needs to rebuild this company's model for an agent run. Nothing else is sent. */
+export const workspaceSnapshot = (ws) => ({
+  company: ws.company, warehouses: ws.warehouses ?? [], products: ws.products ?? [], suppliers: ws.suppliers ?? [],
+  shipments: ws.shipments ?? [], events: ws.events ?? [], alternatives: ws.alternatives ?? [], emissions: ws.emissions ?? {},
+})
 
 const LOCAL_INDEX_KEY = 'waymark.local.index'
 
@@ -102,6 +139,7 @@ export function WorkspaceProvider({ children }) {
   const [carbon, setCarbon] = useState({ running: false, error: null, done: 0 })
   const repo = useRef(null)
   const tokenRef = useRef(null)
+  const saveQueue = useRef(Promise.resolve())
 
   const plan = useMemo(() => {
     if (session?.mode === 'demo') return normalizePlan(session.tier)
@@ -110,8 +148,9 @@ export function WorkspaceProvider({ children }) {
 
   // The API trusts a preview plan only for anonymous traffic; a token always wins.
   useEffect(() => {
-    setSessionHeaders(() => (tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : { 'X-Waymark-Preview-Plan': plan }))
-  }, [plan])
+    const key = workspaceKey(session)
+    setSessionHeaders(() => sessionApiHeaders(session, tokenRef.current, plan, key))
+  }, [plan, session])
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setHealth({ ok: false, integrations: {} }))
@@ -189,8 +228,12 @@ export function WorkspaceProvider({ children }) {
 
   /** Create or update a record, enforcing the plan's limit on anything new. */
   const saveRecord = useCallback(
-    async (collection, record) => {
-      const list = ws[collection] ?? []
+    (collection, record) => {
+      const repository = repo.current
+      const operation = saveQueue.current.catch(() => {}).then(async () => {
+      if (repository !== repo.current) throw new Error('The workspace changed before this record could be saved. Reopen the import in the intended workspace.')
+      const latest = await repository.load()
+      const list = latest[collection] ?? []
       const exists = list.some((r) => r.id === record.id)
       const key = COLLECTION_LIMITS[collection]
       if (key && !exists) {
@@ -198,12 +241,15 @@ export function WorkspaceProvider({ children }) {
         if (!check.allowed) throw new PlanLimitError(key, check.limit, plan)
       }
       const saved = { ...record, id: record.id ?? crypto.randomUUID() }
-      await repo.current.put(collection, saved)
-      setWs((w) => ({
+      await repository.put(collection, saved)
+      setWs((w) => w?.company?.id !== latest.company.id ? w : ({
         ...w,
         [collection]: exists ? w[collection].map((r) => (r.id === saved.id ? saved : r)) : [...(w[collection] ?? []), saved],
       }))
       return saved
+      })
+      saveQueue.current = operation
+      return operation
     },
     [ws, plan],
   )
@@ -271,6 +317,9 @@ export function WorkspaceProvider({ children }) {
     }
   }, [climatiqUsable, model, plan, ws?.company?.id, refreshCarbon])
 
+  /** What an agent run, a monitoring run or a sample-data load sends to the API. */
+  const agentPayload = useCallback(() => ({ workspace: workspaceSnapshot(ws), fx: { rates: fx?.rates ?? {}, source: fx?.source, asOf: fx?.asOf } }), [ws, fx])
+
   const value = useMemo(
     () => ({
       session, status, loadError, ws, model, plan, health, fx, carbon, counts, climatiqUsable,
@@ -279,10 +328,10 @@ export function WorkspaceProvider({ children }) {
       can: (feature) => can(plan, feature),
       limit: (key) => limitOf(plan, key),
       openDemo, setDemoTier, openLocal, reopenLocal, openSupabase, endSession,
-      saveRecord, deleteRecord, updateCompany, resetDemo, refreshCarbon, calculateClimatiq,
+      saveRecord, deleteRecord, updateCompany, resetDemo, refreshCarbon, calculateClimatiq, agentPayload,
       reload: () => session && load(session),
     }),
-    [session, status, loadError, ws, model, plan, health, fx, carbon, counts, climatiqUsable, openDemo, setDemoTier, openLocal, reopenLocal, openSupabase, endSession, saveRecord, deleteRecord, updateCompany, resetDemo, refreshCarbon, calculateClimatiq, load],
+    [session, status, loadError, ws, model, plan, health, fx, carbon, counts, climatiqUsable, openDemo, setDemoTier, openLocal, reopenLocal, openSupabase, endSession, saveRecord, deleteRecord, updateCompany, resetDemo, refreshCarbon, calculateClimatiq, agentPayload, load],
   )
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>

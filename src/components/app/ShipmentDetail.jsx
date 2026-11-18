@@ -1,4 +1,6 @@
 // Shipment panel, shared by the map and the shipment table.
+import WeatherIntelligence from './WeatherIntelligence.jsx'
+import TrackingPanel from './TrackingPanel.jsx'
 import { Link } from 'react-router-dom'
 import { formatCo2e } from '../../../shared/emissions.js'
 import { delayDecision } from '../../engine/delayPlan.js'
@@ -33,7 +35,7 @@ export default function ShipmentDetail({ shipment: s }) {
         <h3 className="text-lg font-bold text-navy">{s.reference}</h3>
         <Badge tone={s.status === 'delayed' ? 'rose' : 'slate'}>{statusLabel(s.status)}</Badge>
         {s.dataSource === 'demo' && <DemoTag />}
-        <AnalyzeButton type="shipment" id={s.id} className="ml-auto" />
+        <AnalyzeButton type="shipment" id={s.id} className="ms-auto" />
       </div>
       {s.status === 'delayed' && !decision && (
         <Notice tone="warn" className="mt-2">
@@ -49,6 +51,8 @@ export default function ShipmentDetail({ shipment: s }) {
           <Link to={`/app/shipments/${s.id}/resolve`} className="mt-1 inline-block font-semibold underline">Review or revise</Link>
         </Notice>
       )}
+      <WeatherIntelligence shipment={s} />
+      <TrackingPanel key={s.id} shipment={s} />
       <dl className="mt-2">
         <Row label="Shipment ID">{s.reference}</Row>
         <Row label="Origin">{first ?? 'Unknown'}</Row>

@@ -1,3 +1,4 @@
+// Landing page features section, including the tariff and trade news preview cards.
 import { useId, useState } from 'react'
 import { suggestChapter, suggestHsCode } from '../utils/classify.js'
 import { money } from '../utils/format.js'

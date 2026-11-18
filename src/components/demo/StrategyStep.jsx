@@ -1,3 +1,4 @@
+// Demo step 4: compare practical responses side by side.
 import { useId } from 'react'
 import { money } from '../../utils/format.js'
 import { Badge, Icon } from '../ui.jsx'

@@ -15,6 +15,7 @@ const proxy = {
   '/api': { target: 'http://localhost:8787', changeOrigin: true },
 }
 
+// React for the UI, Tailwind for styling; the same proxy works for `npm run dev` and `vite preview`.
 export default defineConfig({
   base: '/',
   plugins: [react(), tailwindcss()],

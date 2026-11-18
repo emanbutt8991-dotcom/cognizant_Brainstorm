@@ -1,3 +1,4 @@
+// Trade news feed: recent headlines ranked for relevance, with planning considerations.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cinematicEnabled } from '../config/motion.js'
 import { PRODUCT_CATEGORIES, labelOf } from '../data/demoData.js'

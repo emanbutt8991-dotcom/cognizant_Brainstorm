@@ -347,7 +347,8 @@
   Workspace theme ("Premium Hero"). Scoped to .wm-app so the marketing site is
   untouched. Remapping the colour tokens re-themes every screen from one place.
 */
-.wm-app {
+.wm-app,
+html[data-wm-theme='light'] .wm-app .wm-hero {
   color-scheme: dark;
   --color-slate-50: #18224a;
   --color-slate-100: #1c2751;
@@ -387,6 +388,8 @@
   --color-sky-200: rgb(56 189 248 / 0.35);
   --color-sky-800: #7dd3fc;
   --color-sky-900: #bae6fd;
+}
+.wm-app {
   min-height: 100vh;
   color: var(--color-slate-700);
   background:
@@ -497,12 +500,31 @@ a.wm-tile:hover {
 .wm-app :focus-visible { outline: 2px solid #c4bbff; outline-offset: 3px; }
 .wm-app main, .wm-app form, .wm-app header > div { min-width: 0; }
 .wm-app { overflow-wrap: anywhere; }
-.wm-app dialog { max-width: calc(100vw - 2rem); }
+/* A dialog is as wide as its content needs (set per dialog), and never wider than the screen. */
+.wm-app dialog { max-width: min(var(--wm-dialog-max, 32rem), calc(100vw - 2rem)); }
 .wm-app button { white-space: normal; }
 .wm-app input, .wm-app select, .wm-app textarea { max-width: 100%; }
 .wm-app fieldset { min-width: 0; max-width: 100%; }
 .wm-app fieldset > .flex { flex-wrap: wrap; }
 .wm-app p.font-display.truncate, .wm-app .wm-tile > p.truncate { white-space: normal; overflow: visible; }
+/*
+  Command Center metric grids. Own class (not grid-cols-2) so the phone rule below does not
+  stack six small counters into one tall column. Cards size to their content; the row
+  stretch keeps tiles in a row the same height.
+    Network (6):  2 columns on phones, 3 from 640px, 6 from 1280px.
+    Finance (4):  1 column below 480px, 2 from 480px, 4 from 1280px.
+*/
+.wm-kpi-grid { display: grid; gap: 0.625rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wm-kpi-grid--4 { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 480px) { .wm-kpi-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 640px) { .wm-kpi-grid--6 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1280px) {
+  .wm-kpi-grid { gap: 0.75rem; }
+  .wm-kpi-grid--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .wm-kpi-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Very narrow phones: a slightly smaller figure so long amounts stay on one line. */
+@media (max-width: 400px) { .wm-kpi .font-display { font-size: 1.5rem; } }
 .wm-skip-link { position: fixed; top: -10rem; left: 1rem; z-index: 100; background: #121a3a; color: white; padding: .7rem; border: 2px solid #c4bbff; }
 .wm-skip-link:focus { top: .5rem; }
 .wm-tour-layer { position: fixed; inset: 0; z-index: 80; min-height: 0; background: none; pointer-events: none; }
@@ -521,4 +543,273 @@ a.wm-tile:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .wm-app *, .wm-app *::before, .wm-app *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/*
+  Form controls. A dropdown has to look like something you can press: a clear
+  border, a chevron, and a hover state. Applies to every select in the app,
+  including ones written without the kit's control classes.
+*/
+.wm-app select {
+  appearance: none;
+  cursor: pointer;
+  min-height: 2.5rem;
+  padding: 0 2.1rem 0 0.75rem;
+  border: 1px solid #56659c;
+  border-radius: 0.5rem;
+  background-color: #1a2450;
+  color: #f1f4fc;
+  font-weight: 500;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8d0e8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.wm-app select:hover:not(:disabled) {
+  border-color: #a394ff;
+}
+.wm-app select:focus-visible {
+  border-color: #a394ff;
+  box-shadow: 0 0 0 3px rgb(124 108 255 / 0.35);
+  outline: none;
+}
+.wm-app select:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.wm-app select option {
+  background: #121a3a;
+  color: #f1f4fc;
+}
+.wm-app input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.wm-app textarea {
+  border-color: #56659c;
+}
+.wm-app input[type='checkbox']:not(.sr-only),
+.wm-app input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #7c6cff;
+  cursor: pointer;
+}
+
+/*
+  Light theme. The workspace is dark by default; choosing "Light" sets
+  data-wm-theme on <html>, which puts the original white-and-violet tokens back
+  and undoes the dark surface overrides above. The Command Center hero keeps its
+  night scene in both themes.
+*/
+html[data-wm-theme='light'] .wm-app {
+  color-scheme: light;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-navy: #1e1538;
+  --color-mist: #ece9f7;
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #6d28d9;
+  --color-brand-700: #5b21b6;
+  --color-brand-800: #4c1d95;
+  --color-amber-50: #fffbeb;
+  --color-amber-200: #fde68a;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-rose-50: #fff1f2;
+  --color-rose-200: #fecdd3;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+  --color-sky-50: #f0f9ff;
+  --color-sky-200: #bae6fd;
+  --color-sky-800: #075985;
+  --color-sky-900: #0c4a6e;
+  color: var(--color-slate-700);
+  background:
+    radial-gradient(60% 45% at 78% 0%, rgb(139 92 246 / 0.13), transparent 70%),
+    radial-gradient(45% 40% at 8% 100%, rgb(196 181 253 / 0.2), transparent 70%),
+    #f8f6ff;
+  background-attachment: fixed;
+}
+html[data-wm-theme='light'] .wm-app .bg-white,
+html[data-wm-theme='light'] .wm-app input.bg-white,
+html[data-wm-theme='light'] .wm-app select.bg-white,
+html[data-wm-theme='light'] .wm-app textarea.bg-white,
+html[data-wm-theme='light'] .wm-app dialog.bg-white {
+  background: #ffffff;
+}
+html[data-wm-theme='light'] .wm-app .shadow-sm {
+  box-shadow: 0 1px 2px rgb(30 21 56 / 0.05), 0 12px 28px -20px rgb(91 33 182 / 0.35);
+}
+html[data-wm-theme='light'] .wm-app .hover\:bg-brand-800:hover {
+  background: #4c1d95;
+}
+html[data-wm-theme='light'] .wm-app .text-rose-700 {
+  color: #be123c;
+}
+html[data-wm-theme='light'] .wm-app .text-emerald-700 {
+  color: #047857;
+}
+html[data-wm-theme='light'] .wm-app .text-brand-700 {
+  color: #5b21b6;
+}
+html[data-wm-theme='light'] .wm-app .text-amber-700 {
+  color: #b45309;
+}
+html[data-wm-theme='light'] .wm-app .text-brand-300 {
+  color: #6d28d9;
+}
+html[data-wm-theme='light'] .wm-app dialog::backdrop {
+  background: rgb(30 21 56 / 0.45);
+}
+html[data-wm-theme='light'] .wm-app :focus-visible {
+  outline-color: #6d28d9;
+}
+html[data-wm-theme='light'] .wm-topbar {
+  background: rgb(255 255 255 / 0.86);
+}
+html[data-wm-theme='light'] .wm-topbar .hover\:text-white:hover {
+  color: #4c1d95;
+}
+html[data-wm-theme='light'] .wm-topbar .hover\:bg-white\/5:hover {
+  background: #ede9fe;
+}
+html[data-wm-theme='light'] .wm-app .wm-hero-title {
+  background: linear-gradient(90deg, #2e1065, #6d28d9);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-wm-theme='light'] .wm-app select {
+  border-color: #b9b3d6;
+  background-color: #ffffff;
+  color: #1e1538;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b21b6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+html[data-wm-theme='light'] .wm-app select:hover:not(:disabled),
+html[data-wm-theme='light'] .wm-app select:focus-visible {
+  border-color: #6d28d9;
+}
+html[data-wm-theme='light'] .wm-app select option {
+  background: #ffffff;
+  color: #1e1538;
+}
+html[data-wm-theme='light'] .wm-app input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+html[data-wm-theme='light'] .wm-app textarea {
+  border-color: #cbc6e0;
+}
+/* The hero stays a night scene, so everything inside it keeps the dark palette. */
+html[data-wm-theme='light'] .wm-app .wm-hero {
+  color: var(--color-slate-700);
+}
+html[data-wm-theme='light'] .wm-app .wm-hero .wm-hero-title {
+  background: linear-gradient(90deg, #ffffff, #c4bbff);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-wm-theme='light'] .wm-app .wm-hero .text-brand-300 {
+  color: #b8aeff;
+}
+html[data-wm-theme='light'] .wm-app .wm-hero .bg-white {
+  background: linear-gradient(160deg, rgb(32 42 88 / 0.72), rgb(18 26 58 / 0.82));
+}
+html[data-wm-theme='light'] .wm-app .wm-hero select {
+  border-color: #56659c;
+  background-color: #1a2450;
+  color: #f1f4fc;
+}
+
+/* Settings sidebar: a card on wide screens, in either theme. */
+@media (min-width: 64rem) {
+  .wm-app .wm-sidenav {
+    background: linear-gradient(160deg, rgb(32 42 88 / 0.72), rgb(18 26 58 / 0.82));
+    box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.7);
+  }
+  html[data-wm-theme='light'] .wm-app .wm-sidenav {
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgb(30 21 56 / 0.05), 0 12px 28px -20px rgb(91 33 182 / 0.35);
+  }
+}
+
+/* Selects that carry the kit's bg-white class would otherwise lose their chevron to the surface overrides. */
+.wm-app select.bg-white {
+  background: #1a2450 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8d0e8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.6rem center / 1rem;
+}
+html[data-wm-theme='light'] .wm-app select.bg-white {
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b21b6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.6rem center / 1rem;
+}
+html[data-wm-theme='light'] .wm-app .wm-hero select.bg-white {
+  background: #1a2450 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8d0e8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.6rem center / 1rem;
+}
+
+/* ---------- Waymark 3.0 refinement: navigation, drawers, motion, RTL ---------- */
+
+/* Secondary navigation bar: fixed height, so switching categories never moves the page. */
+.wm-subnav { background: rgb(14 20 52 / 0.55); }
+html[data-wm-theme='light'] .wm-subnav { background: rgb(241 243 255 / 0.85); }
+html[data-wm-theme='light'] .wm-subnav .hover\:text-white:hover,
+html[data-wm-theme='light'] .wm-topbar .wm-cat:hover { color: var(--color-navy); }
+html[data-wm-theme='light'] .wm-subnav a[aria-current='page'] { color: var(--color-navy); background: rgb(106 90 249 / 0.12); }
+
+/* Drawers: a full-height panel on the inline-end edge; a full-screen sheet on phones. */
+.wm-app dialog.wm-drawer,
+dialog.wm-drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  inset-inline-start: auto;
+  margin: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  width: min(var(--wm-drawer-w, 32rem), 100vw);
+  max-width: 100vw;
+  border-radius: 0;
+  border-inline-start: 1px solid var(--color-slate-200);
+}
+.wm-app dialog.wm-drawer.bg-white { background: #121a3a; }
+html[data-wm-theme='light'] .wm-app dialog.wm-drawer.bg-white { background: #ffffff; }
+dialog.wm-drawer.wm-drawer-start { inset-inline-start: 0; inset-inline-end: auto; border-inline-start: 0; border-inline-end: 1px solid var(--color-slate-200); }
+dialog.wm-drawer[open] { animation: wm-drawer-in 0.18s ease-out; }
+@keyframes wm-drawer-in { from { opacity: 0.4; transform: translateX(1.5rem); } to { opacity: 1; transform: none; } }
+[dir='rtl'] dialog.wm-drawer[open] { animation-name: wm-drawer-in-rtl; }
+@keyframes wm-drawer-in-rtl { from { opacity: 0.4; transform: translateX(-1.5rem); } to { opacity: 1; transform: none; } }
+dialog.wm-drawer::backdrop { background: rgb(5 8 22 / 0.6); }
+
+/* The user's "Reduce motion" setting, in addition to the operating-system preference. */
+html[data-wm-reduce-motion='true'] .wm-app *,
+html[data-wm-reduce-motion='true'] .wm-app *::before,
+html[data-wm-reduce-motion='true'] .wm-app *::after,
+html[data-wm-reduce-motion='true'] dialog.wm-drawer { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+
+/* Right-to-left: mirror only what carries direction. Maps, charts and numbers keep their own layout. */
+[dir='rtl'] .wm-app .wm-skip-link { left: auto; right: 1rem; }
+[dir='rtl'] .wm-app .wm-hero-shade { transform: scaleX(-1); }
+[dir='rtl'] .wm-app .maplibregl-map,
+[dir='rtl'] .wm-app canvas,
+[dir='rtl'] .wm-app svg[data-chart],
+[dir='rtl'] .wm-app .recharts-wrapper { direction: ltr; }
+[dir='rtl'] .wm-app input[type='number'],
+[dir='rtl'] .wm-app .tabular-nums { unicode-bidi: plaintext; }
+[dir='rtl'] .wm-app table th { text-align: right; }
+[dir='rtl'] .wm-app select { padding: 0 0.75rem 0 2.1rem; background-position: left 0.6rem center; }
+
+/* Touch targets: interactive controls in the workspace are at least 36px tall on touch screens. */
+@media (pointer: coarse) {
+  .wm-app button:not([role='switch']):not(.wm-inline),
+  .wm-app a.wm-cat { min-height: 2.5rem; }
 }

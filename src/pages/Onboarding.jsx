@@ -7,6 +7,7 @@ import { Notice, NumberInput, SelectInput, Skeleton, TextInput } from '../compon
 import { Button, Icon, Logo } from '../components/ui.jsx'
 import { MODES } from '../engine/model.js'
 import { spawnDetails } from '../data/spawnProfiles.js'
+import { useViewPrefs } from '../state/viewPrefs.js'
 import { useWorkspace } from '../state/WorkspaceContext.jsx'
 
 const STEPS = ['Company', 'Products', 'Suppliers', 'Financials', 'Operations', 'Review']
@@ -54,6 +55,7 @@ function validate(step, d) {
 
 export default function Onboarding() {
   const { session, status, ws, plan, isDemo, updateCompany, saveRecord } = useWorkspace()
+  const { prefs } = useViewPrefs()
   const navigate = useNavigate()
   const storageKey = ws?.company ? `waymark.onboarding.${ws.company.id}` : null
   const [draft, setDraft] = useState(null)
@@ -178,7 +180,7 @@ export default function Onboarding() {
   return (
     <div className="wm-app pb-10">
       <header className="wm-topbar flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
-        <Link to="/" aria-label="Waymark home"><Logo tone="light" /></Link>
+        <Link to="/" aria-label="Waymark home"><Logo tone={prefs.theme === "light" ? "dark" : "light"} /></Link>
         <Button variant="secondary" size="sm" aria-label="Spawn demo details" onClick={() => { setErrors({}); patch({ ...spawnDetails(plan), step: STEPS.length - 1 }) }}>
           <Icon name="sparkles" className="h-4 w-4" /> Spawn demo<span className="hidden min-[400px]:inline"> details</span>
         </Button>
@@ -192,7 +194,7 @@ export default function Onboarding() {
                 disabled={i > draft.step}
                 onClick={() => go(i)}
                 aria-current={i === draft.step ? 'step' : undefined}
-                className="w-full text-left disabled:cursor-not-allowed"
+                className="w-full text-start disabled:cursor-not-allowed"
               >
                 <span className={`block h-1.5 rounded-full ${i <= draft.step ? 'bg-brand-700' : 'bg-slate-300'}`} />
                 <span className={`mt-1 hidden text-xs font-medium sm:block ${i === draft.step ? 'text-brand-800' : 'text-slate-500'}`}>{label}</span>

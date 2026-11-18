@@ -208,6 +208,8 @@ export function buildReport(typeId, { model, ws, fx, scenarios = [], sectionFilt
   }[type.id]
 
   let sections = build()
+  const inventory = model.products.filter(p => p.onHand != null && p.onHand !== '')
+  if (inventory.length) sections.push({ heading: 'Recorded product inventory', paragraphs: ['Stock quantities are recorded/imported facts at the stated import time, not live availability or forecasts.'], table: { head: ['Product','SKU','On hand','Source','Recorded at'], rows: inventory.map(p => [p.name,p.sku ?? '',String(p.onHand),p.dataSource ?? 'Company records',p.importedAt ?? 'Not recorded']) } })
   if (sectionFilter) sections = sections.filter((s) => sectionFilter.includes(s.heading))
 
   const sources = [

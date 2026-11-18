@@ -1,3 +1,4 @@
+// Small pop-up pages opened from the navbar and footer (pricing, sign-in, terms, privacy, security, trust).
 import { useEffect, useRef } from 'react'
 import { DIALOGS } from '../data/content.js'
 import { Badge, Button, Icon } from './ui.jsx'

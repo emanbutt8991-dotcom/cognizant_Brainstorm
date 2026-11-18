@@ -10,10 +10,13 @@ import path from 'node:path'
 import { chromium } from 'playwright-core'
 import { createApp } from '../server/app.js'
 import { loadConfig } from '../server/config.js'
+import { FEATURES, FEATURE_GROUPS, HOME } from '../src/state/viewPrefs.js'
 
+// Each browser suite uses its own port, so they can run side by side.
 const PORT = 8799
 const BASE = `http://127.0.0.1:${PORT}`
 const SHOTS = process.env.E2E_SHOTS
+// The first installed Chromium-based browser is used; nothing is downloaded.
 const BROWSERS = [
   process.env.E2E_BROWSER,
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -26,8 +29,13 @@ const results = []
 let page
 let browserErrors = []
 
+/**
+ * Runs one named step of the journey. A step fails if it throws or if the page logged a new
+ * console error while it ran. Later steps still run, so one failure does not hide the rest.
+ * E2E_ONLY=accessibility runs just the accessibility steps.
+ */
 async function step(name, fn) {
-  if (process.env.E2E_ONLY === 'accessibility' && !/Welcome page|Choose Maple Trail|Text size persists|Read aloud uses|Offline Help/.test(name)) return
+  if (process.env.E2E_ONLY === 'accessibility' && !/Welcome page|Choose Maple Trail|Text size persists|Read aloud uses|Offline Help|Integration category sections/.test(name)) return
   const before = browserErrors.length
   try {
     await fn()
@@ -42,31 +50,57 @@ async function step(name, fn) {
   }
 }
 
+// Small helpers: a screenshot (only when E2E_SHOTS is set), "wait until this text is on screen",
+// and "find a button by its accessible name".
 const shot = async (name) => {
   if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: false })
 }
-const see = (text, options) => page.getByText(text, options).first().waitFor({ timeout: 8000 })
-const HEADINGS = { Overview: 'Waymark Command Center', 'Canadian Alternatives': 'Find Canadian Alternatives', 'Global Alternatives': 'Explore Global Alternatives' }
+const see =(text, options) => page.getByText(text, options).first().waitFor({ timeout: 8000 })
+// Two-level navigation (Waymark 3.0): a category in "Feature categories", then the feature in "<Category> features".
+const ALIASES = { Overview: 'Command Center' }
+const HEADINGS = { 'Command Center': /Command Center/, 'Canadian Alternatives': 'Find Canadian Alternatives', 'Global Alternatives': 'Explore Global Alternatives' }
+// Opens a feature by its label the way a user would: the top bar on wide screens, the menu drawer on phones.
 const nav = async (label) => {
-  await page.getByRole('navigation', { name: 'Application' }).getByRole('link', { name: label }).click()
-  await page.getByRole('heading', { level: 1, name: HEADINGS[label] ?? label }).waitFor()
+  const name = ALIASES[label] ?? label
+  const feature = [HOME, ...FEATURES].find((f) => f.label === name)
+  assert(feature, `Unknown feature: ${name}`)
+  const group = FEATURE_GROUPS.find((g) => g.id === feature.group).label
+  const categories = page.getByRole('navigation', { name: 'Feature categories' })
+  if (await categories.isVisible()) {
+    await categories.getByRole('link', { name: group }).click()
+    const features = page.getByRole('navigation', { name: `${group} features` })
+    // A category link opens the last page used in it; the feature strip always lists every enabled feature.
+    if (feature.id !== 'home') await features.getByRole('link', { name, exact: true }).click()
+  } else {
+    await button('Open navigation menu').click()
+    await page.getByRole('dialog').getByRole('link', { name, exact: true }).click()
+  }
+  await page.getByRole('heading', { level: 1, name: HEADINGS[name] ?? name }).first().waitFor()
 }
 const button = (name, options) => page.getByRole('button', { name, ...options })
-// Settings is reached only from the gear in the top bar, not from the feature menu.
+// Settings is reached only from the gear in the top bar. It is a system screen, not a feature category.
 const openSettings = async () => {
   await page.getByRole('link', { name: 'Settings', exact: true }).click()
-  await page.getByRole('heading', { level: 1, name: 'Company Settings' }).waitFor()
-  assert((await page.getByRole('navigation', { name: 'Application' }).count()) === 0, 'The settings screen should not show the feature menu')
+  await page.getByRole('heading', { level: 1, name: 'Settings' }).waitFor()
+}
+// Below the 2xl breakpoint the demo tier switcher lives in Settings → Plan.
+const setTier = async (tier) => {
+  const top = page.getByRole('group', { name: 'Demo tier' }).getByRole('button', { name: tier, exact: true })
+  if (await top.isVisible().catch(() => false)) return top.click()
+  await page.goto(`${BASE}/app/settings?tab=plan`)
+  await page.getByRole('group', { name: 'Preview tier' }).getByRole('button', { name: tier, exact: true }).click()
 }
 
+// Fails the current step with a readable message.
 function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+// Starts the API on the built app, opens a headless browser, then walks the whole journey.
 async function main() {
   assert(existsSync('dist/index.html'), 'dist/ is missing. Run npm run build first.')
   if (SHOTS) mkdirSync(SHOTS, { recursive: true })
-  const server = createApp({ ...loadConfig({}), rateLimitPerMinute: 5000 }).listen(PORT, '127.0.0.1')
+  const server = createApp({ ...loadConfig({}), dataDir: '', rateLimitPerMinute: 5000 }).listen(PORT, '127.0.0.1')
 
   const executablePath = BROWSERS.find((b) => existsSync(b))
   assert(executablePath, 'No Chromium-based browser found. Set E2E_BROWSER.')
@@ -77,12 +111,17 @@ async function main() {
   })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true })
   page = await context.newPage()
+  // A broken step should fail in seconds, not wait 30 s on every locator.
+  page.setDefaultTimeout(12_000)
+  // Browser tests use a labeled deterministic fixture rather than requiring the public FX service.
+  await page.route('**/api/fx', route => route.fulfill({ json: { rates: { CAD: 1, USD: 1.36, EUR: 1.48, CNY: 0.19, VND: 0.000053 }, source: 'E2E fixture (not live Bank of Canada)', asOf: '2026-11-16', live: true } }))
   page.on('console', (m) => {
     // GDELT's rate-limit replies carry no CORS header, so the browser logs them. The news panel falls back to RSS.
     if (m.type() === 'error' && !/Failed to load resource|api\.gdeltproject\.org/.test(m.text())) browserErrors.push(m.text())
   })
   page.on('pageerror', (e) => browserErrors.push(e.message))
 
+  // ── 1. Demo workspace: dashboard, map, shipments, simulator, alternatives, reports ──
   await step('Welcome page opens, with Try Demo', async () => {
     await page.goto(BASE)
     await see('Plan.')
@@ -123,7 +162,7 @@ async function main() {
     }
     await page.locator('[data-node-id="sup-mt-s-1"]').click()
     await page.getByRole('heading', { name: 'Saigon Riverline Metalworks' }).waitFor()
-    await button('Clear').click()
+    await button('Back to list').click()
     await page.locator('.wm-vehicle').first().click()
     await see('Estimated emissions')
     await see('Potential disruptions')
@@ -138,29 +177,55 @@ async function main() {
     await page.keyboard.press('Escape')
   })
 
+  // Risk Simulator 3.0: Select scenario -> Configure details -> Review and run. Results come from a run snapshot.
+  const runSimulation = async () => {
+    await button('Review', { exact: true }).click()
+    await button('Run Simulation').click()
+    await page.locator('#sim-results').waitFor()
+  }
+  // The whole Risk summary panel: added cost, delivery impact, shortfall and shortage cost.
+  const total = () => page.locator('#sim-results [role="tabpanel"]').first().innerText()
+  // A scenario card, not a saved scenario with the same name.
+  const scenario = (name) => page.getByRole('button', { name: new RegExp(`^${name} (All plans|Pro|Needs Pro)$`) })
+
   await step('Run a disruption scenario with live inputs', async () => {
     await nav('Risk Simulator')
-    await see('Total added cost')
-    const total = () => page.locator('text=Total added cost').locator('..').locator('..').innerText()
+    assert((await page.locator('#sim-results').count()) === 0, 'Results should appear only after Run Simulation')
+    for (const name of ['Tariff increase', 'Port congestion or closure', 'Trade restrictions']) {
+      await scenario(name).click()
+      await button('Back', { exact: true }).click()
+    }
+    await scenario('Supplier delay').click()
+    await page.getByRole('slider', { name: 'Delay' }).fill('20')
+    await runSimulation()
     const before = await total()
-    await page.getByRole('tab', { name: 'Tariff increase' }).click()
-    await page.getByRole('tab', { name: 'Port congestion or closure' }).click()
-    await page.getByRole('tab', { name: 'Trade restrictions' }).click()
-    await page.getByRole('tab', { name: 'Supplier delay' }).click()
-    const slider = page.getByRole('slider', { name: 'Delay' })
-    await slider.fill('90')
+    // Editing an input after the run marks the results out of date instead of silently recalculating them.
+    await button('Configure details').click()
+    await page.getByRole('slider', { name: 'Delay' }).fill('90')
+    await page.locator('[data-testid="sim-stale"]').waitFor()
+    assert((await total()) === before, 'Results changed without a new run')
+    await button('Run again with current inputs').click()
     await page.waitForTimeout(200)
-    assert((await total()) !== before, 'Total did not change when the delay changed')
+    assert((await page.locator('[data-testid="sim-stale"]').count()) === 0, 'Stale notice should clear after a new run')
+    assert((await total()) !== before, 'Total did not change when the delay changed and the scenario ran again')
+    await page.getByRole('tab', { name: 'Impact analysis' }).click()
     await page.locator('[data-map-ready="true"]').waitFor({ timeout: 20000 })
   })
 
   await step('Compare financial and environmental consequences of actions', async () => {
-    await see('Compare responses')
+    await page.getByRole('tab', { name: /^Alternatives/ }).click()
+    await see('Response comparison')
     await see('Build safety stock')
     await see('Alternative supplier')
-    await page.getByLabel('Scenario name').fill('E2E delay test')
-    await button('Save scenario').click()
-    await see('E2E delay test')
+    // Changing the alternative settings flags the results and offers an update, rather than changing them silently.
+    await page.getByRole('slider', { name: 'Volume moved' }).fill('80')
+    await page.locator('[data-testid="sim-stale"]').waitFor()
+    await button('Update results').click()
+    assert((await page.locator('[data-testid="sim-stale"]').count()) === 0, 'Update results should clear the stale notice')
+    await page.getByRole('tab', { name: 'Next steps' }).click()
+    await button(/^Save “/).click()
+    await see('Scenario saved')
+    await page.locator('#sim-results').scrollIntoViewIfNeeded()
     await page.waitForTimeout(500)
     await shot('04-simulator')
   })
@@ -199,7 +264,11 @@ async function main() {
     await page.waitForTimeout(200)
     await button(/Test .* in Risk Simulator/).first().click()
     await page.waitForURL('**/simulator')
-    await see('Compare responses')
+    // The chosen market is carried into the simulator as the alternative source.
+    await scenario('Supplier delay').click()
+    await runSimulation()
+    await page.getByRole('tab', { name: /^Alternatives/ }).click()
+    assert((await page.getByLabel('Alternative source').inputValue()) !== '', 'The market chosen on Global Alternatives was not carried into the simulator')
   })
 
   await step('Sustainability figures match the dashboard total', async () => {
@@ -232,19 +301,23 @@ async function main() {
     await see('No saved reports yet', { exact: false }).then(() => { throw new Error('Report did not save') }, () => {})
   })
 
+  // ── 2. Plans: Free locks features (in the browser and on the server), Enterprise unlocks them ──
   await step('Switch to Free: restrictions apply and data is preserved', async () => {
-    await button('Free', { exact: true }).click()
+    await setTier('Free')
     await nav('Overview')
     await see('adding more is paused')
     await nav('Shipments')
     assert(await button('Add shipment').isDisabled(), 'Add shipment should be disabled on Free')
-    await see('Live aircraft near your airports')
+    await page.getByRole('tab', { name: 'Live aircraft near airports' }).click()
     await page.locator('[data-locked="tracking.live"]').waitFor()
     assert((await page.getByRole('row').count()) > 6, 'Shipments should survive the downgrade')
     await nav('Risk Simulator')
-    await page.getByRole('tab', { name: 'Severe weather' }).click()
+    await scenario('Severe weather').click()
     await page.locator('[data-locked="scenario.advanced"]').waitFor()
-    await page.getByRole('tab', { name: 'Tariff increase' }).click()
+    await button('Back', { exact: true }).click()
+    await scenario('Tariff increase').click()
+    await runSimulation()
+    await page.getByRole('tab', { name: /^Alternatives/ }).click()
     await page.locator('[data-locked="scenario.compare"]').waitFor()
     await nav('Canadian Alternatives')
     await page.locator('[data-locked="alternatives.canadian.full"]').waitFor()
@@ -263,7 +336,7 @@ async function main() {
   })
 
   await step('Switch to Enterprise: the advanced experience unlocks', async () => {
-    await button('Enterprise', { exact: true }).click()
+    await setTier('Enterprise')
     await nav('Reports')
     await see('Custom report builder')
     await button('Build custom report').click()
@@ -292,6 +365,7 @@ async function main() {
     await button('Exit demo').click()
   })
 
+  // ── 3. A new company: sign up, onboarding, editing records, persistence ──
   await step('Sign up creates a clearly labelled local workspace, with no password field', async () => {
     await page.goto(`${BASE}/signup`)
     await see('local workspace', { exact: false })
@@ -428,6 +502,7 @@ async function main() {
     await see('Pro plan')
   })
 
+  // ── 4. Public website: company pages, trial form, pricing, quick estimate ──
   await step('Company, Customer and Tariffs open from the site and return to it', async () => {
     for (const [name, route] of [['Company', '/company'], ['Customer', '/customer'], ['Tariffs', '/tariffs']]) {
       await page.goto(BASE)
@@ -462,6 +537,7 @@ async function main() {
     await see('Step 1 of 3', { exact: false })
   })
 
+  // ── 5. Resilience and later features: phones, API down, no WebGL, AI and intelligence pages ──
   await step('Phone layout has no horizontal page scroll', async () => {
     await page.goto(`${BASE}/demo`)
     await button('Open Maple Trail Home Goods').click()
@@ -483,6 +559,7 @@ async function main() {
     const next = await browser.newContext({ viewport: { width: 1440, height: 900 } })
     if (init) await next.addInitScript(init)
     page = await next.newPage()
+    page.setDefaultTimeout(12_000)
     page.on('pageerror', (e) => browserErrors.push(e.message))
     return next
   }
@@ -505,6 +582,8 @@ async function main() {
     await page.getByRole('button', { name: 'Search', exact: true }).click()
     await see('The directory is unavailable', { exact: false })
     await nav('Risk Simulator')
+    await scenario('Supplier delay').click()
+    await runSimulation()
     await see('Total added cost')
   })
 
@@ -515,7 +594,7 @@ async function main() {
     await openPro(BASE)
     await nav('Supply Chain Map')
     await see('Simplified map: WebGL unavailable', { exact: false })
-    await page.locator('svg path').first().waitFor()
+    await page.locator('main svg path').first().waitFor()
     await shot('11-svg-fallback')
   })
 
@@ -602,14 +681,18 @@ async function main() {
   await step('Command Center: risk and activity feeds sit above the quick actions and scroll on their own', async () => {
     await fresh()
     await openPro(BASE)
+    // 3.0: the quick-action grid became the "Enabled capabilities" panel, still below the feeds.
     const top = async (text) => (await page.getByText(text, { exact: true }).first().boundingBox()).y
-    const actions = await top('What would you like to do?')
-    assert((await top('Current risk feed')) < actions && (await top('Activity feed')) < actions, 'Feeds should come before the quick actions')
-    const tiles = page.getByRole('navigation', { name: 'Application' })
-    assert((await tiles.getByRole('link', { name: 'Company Settings' }).count()) === 0, 'Settings should not be a quick action')
-    await tiles.getByRole('link', { name: 'AI Trade Analyst' }).waitFor()
-    await tiles.getByRole('link', { name: 'World Situation' }).waitFor()
+    const capabilities = await top('Enabled capabilities')
+    assert((await top('Current risk feed')) < capabilities && (await top('Activity feed')) < capabilities, 'Feeds should come before the capabilities panel')
+    const panel = page.locator('section, div').filter({ has: page.getByText('Enabled capabilities', { exact: true }) }).last()
+    assert((await panel.getByRole('link', { name: 'Settings', exact: true }).count()) === 0, 'Settings should not be listed as a capability')
+    await page.getByRole('link', { name: /AI Trade Analyst/ }).first().waitFor()
+    await page.getByRole('link', { name: /Global Risk Intelligence/ }).first().waitFor()
     await page.getByRole('link', { name: 'Settings', exact: true }).waitFor()
+    // Metric cards are compact (Command Center card refinement).
+    const heights = await page.locator('[data-kpi]').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))
+    assert(heights.length === 10 && Math.max(...heights) <= 155, `Metric cards should be compact, got ${heights.map(Math.round).join(', ')}`)
     const feed = page.locator('#alerts .wm-scroll')
     assert((await feed.boundingBox()).height <= 300, 'Risk feed should be compact')
     assert(await feed.evaluate((el) => el.scrollHeight > el.clientHeight), 'Risk feed should scroll inside its card')
@@ -696,6 +779,7 @@ async function main() {
     await see('Open article')
   })
 
+  // ── 6. Accessibility: text size, read aloud, offline help ──
   await step('Text size persists, Settings tabs deep link, and every app page fits at 150% on a phone', async () => {
     await page.goto(BASE + '/app/settings?tab=display')
     await page.getByRole('combobox', { name: 'Text size', exact: true }).last().selectOption('150')
@@ -720,8 +804,8 @@ async function main() {
     await page.goto(BASE + '/app/settings?tab=profile')
     await page.getByRole('tab', { name: 'Profile', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => document.getElementById('tab-display')?.getAttribute('aria-selected') === 'true')
-    assert(await page.getByRole('tab', { name: 'Display', exact: true }).getAttribute('aria-selected') === 'true', 'Settings tabs do not support arrow keys')
+    await page.waitForFunction(() => document.getElementById('tab-products')?.getAttribute('aria-selected') === 'true')
+    assert(await page.getByRole('tab', { name: 'Products', exact: true }).getAttribute('aria-selected') === 'true', 'Settings tabs do not support arrow keys')
     await page.goto(BASE + '/app/shipments')
     await page.locator('main h1').waitFor()
     await page.waitForFunction(() => document.activeElement?.tagName === 'H1')
@@ -733,6 +817,9 @@ async function main() {
   })
 
   await step('Read aloud uses meaningful page content, device voices, pause, resume, speed and stop', async () => {
+    // 3.0: the Read aloud button is opt-in (Settings → Accessibility & Display) and floats on every page.
+    await page.goto(BASE + '/app/settings?tab=display')
+    await page.getByRole('switch', { name: /Read aloud: show a Read aloud button/ }).check()
     await page.addInitScript(() => {
       window.__speech = { spoken: [], paused: 0, resumed: 0, stopped: 0 }
       window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text } }
@@ -791,7 +878,16 @@ async function main() {
     await page.locator('.wm-tour-spotlight').waitFor()
     await tour.getByRole('button', { name: 'End tour' }).focus()
     await page.keyboard.press('Tab')
-    assert(await tour.getByRole('button', { name: 'Finish', exact: true }).evaluate((el) => el === document.activeElement), 'Tour focus escaped')
+    assert(await tour.getByRole('button', { name: 'Next', exact: true }).evaluate((el) => el === document.activeElement), 'Tour focus escaped')
+    await tour.getByText('Step 1 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByText('Step 2 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Back', exact: true }).click()
+    await tour.getByText('Step 1 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByRole('button', { name: 'Next', exact: true }).click()
+    await tour.getByText('Step 3 of 3', { exact: true }).waitFor()
+    await tour.getByRole('button', { name: 'Finish', exact: true }).waitFor()
     await page.keyboard.press('Escape')
     await button('Help', { exact: true }).click()
     await help.getByRole('textbox').fill('pizza recipes')
@@ -817,6 +913,48 @@ async function main() {
     await page.keyboard.press('Space')
   })
 
+  await step('Integration category sections group providers and home has no intelligence cards', async () => {
+    await page.goto(BASE + '/app')
+    await see('Waymark Command Center')
+    assert(await page.getByRole('heading', { name: 'Weather intelligence', exact: true }).count() === 0, 'Home weather card remains')
+    // 3.0: Integrations is a full page in the Business category; Settings keeps a compact status summary only.
+    await openSettings()
+    await page.getByRole('tab', { name: 'Integrations', exact: true }).click()
+    await page.waitForURL('**/app/settings?tab=integrations')
+    await page.getByRole('table', { name: 'Integration status' }).waitFor()
+    await nav('Integrations')
+    // AI models live under Settings → AI, not in the integrations list.
+    await page.getByRole('region', { name: 'Accounting and Financial', exact: true }).getByRole('heading', { name: 'QuickBooks Online', exact: true }).waitFor()
+    assert(await page.getByRole('heading', { name: 'Google Gemini', exact: true }).count() === 0, 'AI providers should not be listed under Integrations')
+    await page.getByLabel('Search', { exact: true }).fill('Shopify')
+    await page.getByRole('region', { name: 'CRM and Commerce', exact: true }).getByRole('heading', { name: 'Shopify', exact: true }).waitFor()
+    assert(await page.getByRole('region', { name: 'Accounting and Financial', exact: true }).count() === 0, 'Sections with no match should be hidden by search')
+    await page.getByLabel('Search', { exact: true }).fill('')
+    await openSettings()
+    await page.getByRole('tab', { name: 'AI & Models', exact: true }).click()
+    await page.waitForURL('**/app/settings?tab=ai')
+    const ai = page.getByRole('region', { name: 'AI models', exact: true })
+    for (const name of ['Claude', 'OpenAI GPT', 'Google Gemini', 'Grok']) await ai.getByRole('heading', { name, exact: true }).waitFor()
+    // Connecting asks for a key only, in a small dialog.
+    await ai.getByRole('button', { name: 'Add key' }).nth(2).click()
+    const keyDialog = page.getByRole('dialog', { name: 'Connect Google Gemini', exact: true })
+    await keyDialog.getByLabel('API key').waitFor()
+    assert(await keyDialog.getByLabel(/model/i).count() === 0, 'The key dialog should not ask for a model')
+    await keyDialog.getByRole('button', { name: 'Cancel' }).click()
+    // The light theme can be switched on and off from the top bar.
+    await button('Switch to light theme').click()
+    assert(await page.evaluate(() => document.documentElement.dataset.wmTheme) === 'light', 'Light theme was not applied')
+    await button('Switch to dark theme').click()
+    assert(await page.evaluate(() => document.documentElement.dataset.wmTheme) === 'dark', 'Dark theme was not restored')
+    // An expired OAuth sign-in returns to the Integrations page with a clear message.
+    await page.goto(BASE + '/app/integrations?error=state')
+    await page.getByText('The sign-in link expired or was already used', { exact: false }).waitFor()
+    await page.setViewportSize({ width: 360, height: 780 })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Integration sections overflow on mobile')
+    await page.setViewportSize({ width: 1440, height: 900 })
+  })
+
+  // ── 7. Waymark 3.0: new pages, CSV import, guided agent planner ──
   await step('New pages have no sideways scroll on a phone', async () => {
     await page.setViewportSize({ width: 360, height: 780 })
     for (const route of ['/app', '/app/analyst', '/app/world', '/app/shipments/mt-sh-2/resolve', '/demo']) {
@@ -825,6 +963,58 @@ async function main() {
       const extra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       assert(extra <= 1, `${route} scrolls sideways by ${extra}px at 360px wide`)
     }
+  })
+
+  await step('Waymark 3: all six routes render and retain mobile layout', async () => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(BASE + '/demo')
+    await button('Pro', {exact:true}).click()
+    await button('Open Maple Trail Home Goods').click()
+    await page.waitForURL('**/app')
+    for (const [route,title] of [['agent','AI Agent Hub'],['activity','Agent Activity'],['approvals','Approvals'],['integrations','Integrations'],['inventory','Inventory & Orders'],['finance','Financial Intelligence']]) {
+      await page.goto(`${BASE}/app/${route}`)
+      await page.getByRole('heading',{level:1,name:title,exact:true}).waitFor()
+      await page.setViewportSize({width:360,height:780})
+      await page.waitForTimeout(300)
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth + 1), `${title} has mobile overflow`)
+      await page.setViewportSize({width:1440,height:900})
+    }
+  })
+
+  await step('Waymark 3: CSV import persists and appears in inventory', async () => {
+    await page.goto(BASE + '/app/integrations')
+    await button('Import with CSV import').click()
+    const dialog=page.getByRole('dialog',{name:'Import business records'})
+    await dialog.getByLabel('Record type').selectOption('products')
+    await dialog.locator('input[type=file]').setInputFiles({name:'inventory.csv',mimeType:'text/csv',buffer:Buffer.from('name,sku,onHand,unitCost,currency\nE2E imported inventory,E2E-01,20,12,CAD')})
+    await dialog.getByText('1 valid', {exact:false}).waitFor()
+    await dialog.getByRole('button',{name:'Confirm and import valid records'}).click()
+    await dialog.getByText('1 saved', {exact:false}).waitFor()
+    await dialog.getByRole('button',{name:'Close',exact:true}).click()
+    await page.goto(BASE + '/app/inventory')
+    await see('E2E imported inventory'); await see('E2E-01')
+    await page.reload(); await see('E2E imported inventory'); await see('E2E-01')
+  })
+
+  await step('Waymark 3: guided planner demo produces evidence, saved history and an approval', async () => {
+    await page.goto(BASE + '/app/agent')
+    await button('Run guided demo',{exact:true}).click()
+    await page.getByRole('heading',{name:'Investigation: completed',exact:true}).waitFor({timeout:30000})
+    await page.getByRole('tab', { name: /^Tool activity/ }).first().click()
+    await see('get_weather_risk');await see('get_customer_orders')
+    await button('Save to Reports', { exact: true }).first().click()
+    await see('Report saved to Reports.')
+    await page.reload();await page.getByRole('button',{name:/Check weather disruption, compare alternatives/}).first().click()
+    await see('Investigation: completed')
+    await page.goto(BASE + '/app/approvals')
+    await button('Approve',{exact:true}).first().click()
+    await see('not_sent',{exact:true})
+    await page.goto(BASE + '/app/activity');await see('What to monitor')
+    await page.goto(BASE + '/app/settings?tab=ai')
+    await page.getByLabel('Preferred provider').selectOption('')
+    await button('Save AI preferences').click();await see('AI preferences saved.')
+    await page.reload();assert(await page.getByLabel('Preferred provider').inputValue()==='', 'Planner preference did not persist')
+    await page.goto(BASE + '/app');await see('Waymark Command Center')
   })
 
   climatiq.close()

@@ -1,3 +1,4 @@
+// Landing page hero: headline, call to action and a small dashboard preview.
 import { useMemo } from 'react'
 import { DEFAULT_STRATEGY, SAMPLE_COMPANY, SAMPLE_SCENARIO } from '../data/demoData.js'
 import { assessProfile, computeStrategies, resolveInputs } from '../utils/calculations.js'

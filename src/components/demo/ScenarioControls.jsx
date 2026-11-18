@@ -1,3 +1,4 @@
+// Sliders, switches and money inputs that shape the hypothetical disruption scenario.
 import { useId } from 'react'
 import { SCENARIO_LIMITS } from '../../data/demoData.js'
 import { money } from '../../utils/format.js'

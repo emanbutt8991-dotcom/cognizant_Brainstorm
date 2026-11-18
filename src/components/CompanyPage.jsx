@@ -1,3 +1,4 @@
+// Public "Company" page: who we are and the vision.
 import { useEffect, useRef } from 'react'
 import { COMPANY_STORY } from '../data/content.js'
 import PageHeader from './PageHeader.jsx'

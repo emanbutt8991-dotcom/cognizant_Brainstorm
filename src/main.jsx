@@ -1,3 +1,4 @@
+// Browser entry point: fonts, global styles and translations, then the app inside the router.
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -5,6 +6,8 @@ import { BrowserRouter } from 'react-router-dom'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/manrope'
 import './index.css'
+// Interface translations. Loaded before the app so the saved language applies on first paint.
+import './i18n/index.js'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(

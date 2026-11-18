@@ -1,3 +1,5 @@
+// Delay Assist: the MT-2042 worked example, reading supplier emails without AI, refusing
+// AI output that is not grounded in the data, and the AI and news API routes.
 import http from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp } from '../server/app.js'

@@ -1,3 +1,4 @@
+// Stacked bar chart comparing the added cost of each response strategy.
 import { money, moneyCompact } from '../../utils/format.js'
 
 export const COMPONENT_META = [

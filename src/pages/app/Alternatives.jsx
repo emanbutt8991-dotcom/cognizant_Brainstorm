@@ -1,4 +1,6 @@
+// Canadian and Global Alternatives: compare suppliers for a product lane and save leads or comparisons.
 import { useMemo, useState } from 'react'
+import AiLauncher from '../../components/app/AiLauncher.jsx'
 import { Link, useNavigate } from 'react-router-dom'
 import { SOURCES, countryName } from '../../../shared/countries.js'
 import { formatCo2e } from '../../../shared/emissions.js'
@@ -193,7 +195,7 @@ export function CanadianAlternatives() {
 
   return (
     <div>
-      <PageHeader title="Find Canadian Alternatives" badge={isDemo && <DemoTag />} actions={lane && <Button onClick={() => setAdding({})}><Icon name="plus" className="h-4 w-4" /> Add a lead</Button>}>
+      <PageHeader title="Find Canadian Alternatives" badge={isDemo && <DemoTag />} actions={<><AiLauncher task="Find Canadian alternative suppliers that reduce cost without increasing delivery risk." context={['Canadian Alternatives']} />{lane && <Button onClick={() => setAdding({})}><Icon name="plus" className="h-4 w-4" /> Add a lead</Button>}</>}>
         Investigate whether imported products could come from Canadian manufacturers, wholesalers or distributors. Nothing here is invented: unknown prices show as Request Quote.
       </PageHeader>
       {isDemo && <Notice tone="info" className="mb-3">Leads in this demo are fictional examples. A real workspace shows only leads you add or public records you save.</Notice>}
@@ -251,7 +253,7 @@ export function CanadianAlternatives() {
                   <CompareTable current={current} options={options} />
                   <div className="mt-2"><SocialContext /></div>
                 </Card>
-                <Recommendation current={current} options={options} basis={basis} />
+                <Recommendation current={current} options={options} basis={basis} report={{ title: `Canadian alternatives: ${lane.product.name}`, context: [`Product: ${lane.product.name}${lane.product.hsCode ? ` (HS ${lane.product.hsCode})` : ''}`, `Current supplier: ${lane.supplier.name}`, `${options.length} Canadian lead(s) compared`] }} />
                 <Card title="Routes compared"><SupplyMap data={map} className="h-[22rem]" label="Current and Canadian routes" /><div className="mt-2"><MapLegend /></div></Card>
               </Gate>
             </>
@@ -291,7 +293,7 @@ export function GlobalAlternatives() {
 
   return (
     <div>
-      <PageHeader title="Explore Global Alternatives" badge={isDemo && <DemoTag />}>
+      <PageHeader title="Explore Global Alternatives" badge={isDemo && <DemoTag />} actions={<AiLauncher task="Compare my current sourcing countries with alternatives on cost, risk and emissions." context={['Global Alternatives']} />}>
         Compare sourcing the same product from other countries. These are hypothetical, country-level comparisons, not specific suppliers.
       </PageHeader>
       {!lanes.length ? <NoLanes /> : (
@@ -344,7 +346,7 @@ export function GlobalAlternatives() {
                     ))}
                   </div>
                 </Card>
-                <Recommendation current={current} options={options} basis={basis} />
+                <Recommendation current={current} options={options} basis={basis} report={{ title: `Global alternatives: ${lane.product.name}`, context: [`Product: ${lane.product.name}${lane.product.hsCode ? ` (HS ${lane.product.hsCode})` : ''}`, `Current supplier: ${lane.supplier.name}`, `Markets compared: ${options.map((o) => countryName(o.countryCode)).join(', ')} (hypothetical, country level)`] }} />
                 <Card title="Routes compared" subtitle="Schematic routes from main ports"><SupplyMap data={map} className="h-[22rem]" label="Current and alternative routes" /><div className="mt-2"><MapLegend /></div></Card>
               </>
             )}

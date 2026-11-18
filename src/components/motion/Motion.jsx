@@ -1,3 +1,4 @@
+// Gentle motion helpers: fade-in on scroll and numbers that count up. Both respect "reduce motion".
 import { money } from '../../utils/format.js'
 import { useReveal, useTweenedNumber } from '../../hooks/useMotion.js'
 

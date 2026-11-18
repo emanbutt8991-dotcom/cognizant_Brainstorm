@@ -1,3 +1,4 @@
+// The guided public demo: profile, scenario, strategy and report steps, plus their shared layout pieces.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DEFAULT_SCENARIO,

@@ -1,3 +1,4 @@
+// Demo step 2: the preliminary company profile built from the questionnaire answers.
 import {
   BUFFERS,
   CONCENTRATION,

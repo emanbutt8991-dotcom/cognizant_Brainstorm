@@ -1,3 +1,5 @@
+// The planning engine: plans and limits, ports and routes, emissions, financial inputs, the
+// company model, the Risk Simulator, sourcing comparisons, HS suggestions and reports.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { COUNTRIES } from '../shared/countries.js'
 import { can, checkLimit, limitOf, PLANS } from '../shared/entitlements.js'

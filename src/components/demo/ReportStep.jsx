@@ -1,3 +1,4 @@
+// Demo step 5: the final planning report, with inputs, scenario, impact, assumptions and next actions.
 import {
   BUFFERS,
   CONCENTRATION,

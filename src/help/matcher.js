@@ -14,6 +14,7 @@ function near(a, b) {
   return [...long].some((_, i) => long.slice(0, i) + long.slice(i + 1) === short)
 }
 export function matchHelp(question, topics) {
+  if (/^settings[?.!\s]*$/i.test(question.trim())) return { kind: 'ambiguous', matches: topics.filter(t => t.id.startsWith('settings-')).slice(0,3).map(topic => ({ topic, score: 0.2 })) }
   const docs = topics.map((t) => tokens([t.title, ...t.examples, t.keywords].join(' ')))
   const vocabulary = [...new Set(docs.flat())]
   const query = tokens(question.slice(0, 600)).map((w) => vocabulary.includes(w) ? w : vocabulary.find((v) => near(w, v)) ?? w)

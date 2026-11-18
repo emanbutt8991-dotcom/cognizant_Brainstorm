@@ -7,7 +7,11 @@
   and it never invents one. When the sources cannot be reached, the page says so.
 */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import AiLauncher from '../../components/app/AiLauncher.jsx'
+import ReportAction from '../../components/app/ReportAction.jsx'
 import { countryName } from '../../../shared/countries.js'
+import WeatherIntelligence from '../../components/app/WeatherIntelligence.jsx'
+import { Investigate } from '../../components/app/PlatformKit.jsx'
 import AnalyzeButton from '../../components/app/AnalyzeButton.jsx'
 import { Card, DemoTag, Empty, Notice, PageHeader, SelectInput, Skeleton, TextInput } from '../../components/app/kit.jsx'
 import { Badge, Button, Icon } from '../../components/ui.jsx'
@@ -103,6 +107,7 @@ function ArticleCard({ article, featured = false }) {
         <p className="mt-2 text-sm text-slate-600">{label.text}</p>
       )}
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+        <Investigate task={`Investigate possible shipment exposure to reported event: ${article.title}. Source: ${article.url}`} />
         <AnalyzeButton type="news" id={article.url} extra={extra} open label="Analyze impact on my business" />
         <a href={article.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-brand-800 hover:underline">Read at source <Icon name="arrowRight" className="h-4 w-4" /></a>
       </div>
@@ -185,18 +190,35 @@ export default function WorldSituation() {
   const exposed = articles.filter((a) => a.exposure.level === 'potential').length
   const filtering = Object.entries(filters).some(([k, v]) => v && !(k === 'age' && v === '7'))
   const featured = filtering ? [] : visible.slice(0, 3)
+
+  // A report lists only headlines that matched company records, with the matching reason. No article text is copied or summarised.
+  const relevant = visible.filter((a) => a.exposure.level === 'potential')
+  const buildReport = () => ({
+    title: `Global risk intelligence: ${CATEGORIES.find((c) => c.value === category)?.label ?? category}`,
+    typeId: 'risk-intelligence',
+    context: { heading: 'Feed and filters', lines: [`Category: ${CATEGORIES.find((c) => c.value === category)?.label}`, `Headlines in view: ${visible.length} of ${articles.length}`, `Updated ${new Date(state.data.fetchedAt).toLocaleString('en-CA')} via ${state.data.source}`, ...Object.entries(filters).filter(([k, v]) => v && !(k === 'age' && v === '7')).map(([k, v]) => `Filter ${k}: ${v}`)] },
+    sections: [
+      { heading: 'Executive summary', paragraphs: [`${relevant.length} of ${visible.length} headlines in view name a place or route that also appears in your supplier or shipment records. A match shows possible exposure, never a confirmed effect.`] },
+      { heading: 'Analysis results', table: { head: ['Headline', 'Publisher', 'Date', 'Matched records'], rows: relevant.slice(0, 40).map((a) => [a.title, a.publisher ?? '', when(a.publishedAt), [...a.exposure.shipments.map((s) => s.reference), ...a.exposure.suppliers.map((s) => s.name)].join(', ')]) } },
+      { heading: 'Evidence', bullets: relevant.slice(0, 40).flatMap((a) => [...a.exposure.shipments.map((s) => `${s.reference}: ${s.why}`), ...a.exposure.suppliers.map((s) => `${s.name}: ${s.why}`)]).slice(0, 80) },
+      { heading: 'Recommendations', bullets: relevant.length ? ['Review each matched record and confirm the situation with the carrier or supplier before acting.', 'Use the AI Agent Hub or the Risk Simulator to test the cost and timing of a disruption on the matched suppliers.'] : ['No headline in view matched your records. Keep monitoring; no action is indicated by this feed.'] },
+      { heading: 'Assumptions and limitations', bullets: ['Matching uses country, port and route names in headlines against your records. It does not read the articles.', 'Headlines that name no place cannot be matched and are reported as insufficient data.', 'Publisher content is linked, not copied. Verify details at the source.'] },
+    ],
+    sources: [{ label: 'Headlines', detail: `${state.data.source}, retrieved ${new Date(state.data.fetchedAt).toLocaleString('en-CA')}` }, { label: 'Company records', detail: isDemo ? 'Fictional demo data' : 'Entered by your company' }],
+  })
   const rest = filtering ? visible : visible.slice(3)
 
   return (
     <div>
       <PageHeader
-        title="World Situation"
+        title="Global Risk Intelligence"
         badge={isDemo && <DemoTag />}
-        actions={<Button variant="secondary" onClick={() => load(category, true)} disabled={state.loading}><Icon name="refresh" className="h-4 w-4" /> Refresh</Button>}
+        actions={<><AiLauncher task="Investigate potential exposure from the latest disruption news to my suppliers and shipments." context={['Global Risk Intelligence', 'Recent disruption headlines matched to company records']} /><Button variant="secondary" onClick={() => load(category, true)} disabled={state.loading}><Icon name="refresh" className="h-4 w-4" /> Refresh</Button></>}
       >
         Trade, shipping and disruption headlines from the last week, matched to your suppliers and shipments. A match shows possible exposure, never a confirmed effect.
       </PageHeader>
 
+      <WeatherIntelligence />
       <div data-tour="feature-world" className="wm-strip mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="News category" onKeyDown={(e) => {
         const i = CATEGORIES.findIndex((c) => c.value === category)
         const next = e.key === 'ArrowRight' ? (i + 1) % CATEGORIES.length : e.key === 'ArrowLeft' ? (i + CATEGORIES.length - 1) % CATEGORIES.length : e.key === 'Home' ? 0 : e.key === 'End' ? CATEGORIES.length - 1 : null
@@ -223,6 +245,7 @@ export default function WorldSituation() {
           {state.data.fallback && ' (direct fallback: the Waymark news service is unreachable, so only this category is available)'} · {exposed} with potential impact on your records
         </p>
       )}
+      {state.data && articles.length > 0 && <div className="mb-3 flex justify-end"><ReportAction build={buildReport} /></div>}
 
       {state.loading && !state.data && <div className="grid gap-3 md:grid-cols-3"><Skeleton className="h-44" /><Skeleton className="h-44" /><Skeleton className="h-44" /></div>}
 
@@ -266,7 +289,7 @@ export default function WorldSituation() {
                 <ul className="space-y-2">
                   {regionCounts.map(([region, n]) => (
                     <li key={region}>
-                      <button type="button" aria-pressed={filters.region === region} onClick={() => set('region')(filters.region === region ? '' : region)} className="w-full text-left">
+                      <button type="button" aria-pressed={filters.region === region} onClick={() => set('region')(filters.region === region ? '' : region)} className="w-full text-start">
                         <span className="flex justify-between gap-2 text-sm"><span className={filters.region === region ? 'font-bold text-navy' : 'text-slate-700'}>{region}</span><span className="text-slate-500 tabular-nums">{n}</span></span>
                         <span className="mt-1 block h-1.5 rounded-full bg-slate-100"><span className="block h-1.5 rounded-full bg-brand-600" style={{ width: `${(n / maxRegion) * 100}%` }} /></span>
                       </button>

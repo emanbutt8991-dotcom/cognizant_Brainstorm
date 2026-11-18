@@ -49,6 +49,7 @@ beforeAll(async () => {
   db = new PGlite()
   await db.exec(STUBS)
   await db.exec(migration)
+  await db.exec(readFileSync('supabase/migrations/0002_waymark_platform.sql', 'utf8'))
   await db.exec(GRANTS)
   await db.query(`insert into auth.users values ($1, 'a@example.com'), ($2, 'b@example.com')`, [ALICE, BOB])
 })
@@ -114,6 +115,26 @@ describe('tenant isolation', () => {
     const { rows } = await as(BOB, () => db.query(`select id from public.companies where id = $1`, [aliceCo]))
     expect(rows.length).toBe(1)
     await db.query(`delete from public.company_memberships where company_id = $1 and user_id = $2`, [aliceCo, BOB])
+  })
+})
+
+describe('Waymark 3 platform migration and policies', () => {
+  let company
+  beforeAll(async () => {
+    company = await createCompany(ALICE, 'Platform Co')
+    await db.query(`insert into public.agent_runs(company_id,id,details) values ($1,'run-1','{"task":"private"}')`, [company])
+    await db.query(`insert into public.integration_connections(company_id,id,details) values ($1,'openai','{"sealed":"ciphertext"}')`, [company])
+    await db.query(`insert into public.integration_datasets(company_id,id,details) values ($1,'finance','{"sealed":"private-data"}')`, [company])
+  })
+  it('permits members to read their agent runs and hides cross-company runs', async () => {
+    expect((await as(ALICE, () => db.query('select id from agent_runs'))).rows).toEqual([{id:'run-1'}])
+    expect((await as(BOB, () => db.query('select id from agent_runs'))).rows).toEqual([])
+  })
+  it('hides credentials and datasets even from owners', async () => {
+    for (const table of ['integration_connections','integration_datasets']) expect((await as(ALICE, () => db.query(`select * from ${table}`))).rows).toEqual([])
+  })
+  it('prevents clients from creating approvals or changing platform settings', async () => {
+    for (const table of ['approval_requests','platform_settings','agent_runs','integration_connections','integration_datasets']) await expect(as(ALICE, () => db.query(`insert into ${table}(company_id,id) values ($1,'forged')`, [company]))).rejects.toThrow()
   })
 })
 

@@ -1,3 +1,9 @@
+/*
+  The Express app behind Waymark: security headers, rate limiting and plan checks for /api,
+  the public-data routes (emissions, exchange rates, weather, news, directory, tracking),
+  the AI routes (Delay Assist, Trade Analyst), the platform routes from platform.js, and
+  finally the built React app with a fallback to index.html for client-side routes.
+*/
 import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -6,6 +12,7 @@ import { requireFeature, createAccessMiddleware } from './access.js'
 import { calculateFreight, validateFreightRequest } from './climatiq.js'
 import { explainRecommendation } from './explain.js'
 import { UpstreamError, rateLimiter, ttlCache } from './http.js'
+import { mountPlatform } from './platform.js'
 import { fetchAircraft, fetchFx, fetchNewsRss, fetchWeather, geocode, searchCanadianCompanies } from './providers.js'
 import { limitOf } from '../shared/entitlements.js'
 import { handleAnalyst, handleDelayAgent } from '../supabase/functions/_shared/agent.js'
@@ -37,7 +44,10 @@ const route = (handler) => async (req, res) => {
 export function createApp(config) {
   const app = express()
   app.disable('x-powered-by')
-  app.use(express.json({ limit: '256kb' }))
+  // Routes that carry a workspace snapshot or a signed webhook body bring their own parser, registered ahead of this one.
+  const ownParser = /^\/api\/(agent\/run|monitor\/run|branding$|integrations\/[^/]+\/(demo|sync)|webhooks\/)/
+  const smallJson = express.json({ limit: '256kb' })
+  app.use((req, res, next) => (ownParser.test(req.path) ? next() : smallJson(req, res, next)))
 
   // Same-origin in production and proxied by Vite in development; this also covers a split deployment.
   app.use('/api', (req, res, next) => {
@@ -45,8 +55,8 @@ export function createApp(config) {
     if (origin && config.allowedOrigins.includes(origin)) {
       res.set('Access-Control-Allow-Origin', origin)
       res.set('Vary', 'Origin')
-      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Waymark-Preview-Plan')
-      res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Waymark-Preview-Plan, X-Waymark-Workspace')
+      res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
     }
     if (req.method === 'OPTIONS') return res.sendStatus(204)
     next()
@@ -110,6 +120,8 @@ export function createApp(config) {
         openMeteo: true,
         openSky: true,
         fx: true,
+        // Waymark 3.0 routes exist on this server. A static deployment without them reports false.
+        platform: true,
       },
     })
   })
@@ -243,6 +255,8 @@ export function createApp(config) {
       message: 'No container or air waybill tracking provider adapter is connected.',
     })
   })
+
+  mountPlatform(app, config, { fetchImpl })
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'not_found', message: 'Unknown API route.' }))
 

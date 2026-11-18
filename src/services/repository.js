@@ -24,7 +24,7 @@ function writeJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value))
     return true
   } catch {
-    return false
+    throw new Error('Browser storage is unavailable or full. The record was not persisted. Free space or use an account workspace.')
   }
 }
 
@@ -32,6 +32,7 @@ function writeJson(key, value) {
 export function createLocalRepository(storageKey, seed) {
   let state = readJson(storageKey) ?? seed()
   const persist = () => writeJson(storageKey, state)
+  const commit = next => { writeJson(storageKey, next); state = next }
 
   return {
     kind: 'local',
@@ -40,28 +41,23 @@ export function createLocalRepository(storageKey, seed) {
       return { ...EMPTY, ...state }
     },
     async saveCompany(company) {
-      state = { ...state, company }
-      persist()
+      commit({ ...state, company })
       return company
     },
     async put(collection, record) {
       const list = state[collection] ?? []
       const exists = list.some((r) => r.id === record.id)
-      state = { ...state, [collection]: exists ? list.map((r) => (r.id === record.id ? record : r)) : [...list, record] }
-      persist()
+      commit({ ...state, [collection]: exists ? list.map((r) => (r.id === record.id ? record : r)) : [...list, record] })
       return record
     },
     async remove(collection, id) {
-      state = { ...state, [collection]: (state[collection] ?? []).filter((r) => r.id !== id) }
-      persist()
+      commit({ ...state, [collection]: (state[collection] ?? []).filter((r) => r.id !== id) })
     },
     async putEmission(key, result) {
-      state = { ...state, emissions: { ...(state.emissions ?? {}), [key]: result } }
-      persist()
+      commit({ ...state, emissions: { ...(state.emissions ?? {}), [key]: result } })
     },
     async reset() {
-      state = seed()
-      persist()
+      commit(seed())
       return { ...EMPTY, ...state }
     },
   }

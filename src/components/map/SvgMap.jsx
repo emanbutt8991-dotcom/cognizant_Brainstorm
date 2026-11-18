@@ -1,3 +1,4 @@
+// Lightweight flat map drawn in SVG: used without WebGL and for previews.
 import MapText from './MapText.jsx'
 // Fallback renderer for devices without WebGL. Same data, drawn with d3-geo.
 import { useEffect, useMemo, useState } from 'react'

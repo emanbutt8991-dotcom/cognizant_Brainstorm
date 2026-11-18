@@ -1,3 +1,4 @@
+// Free-trial sign-up form, with validation and a confirmation screen.
 import { useEffect, useId, useRef, useState } from 'react'
 import { LEGAL_LINKS, PERSONAS, SIGNUP_PAGE } from '../data/content.js'
 import { isValidEmail } from '../utils/validation.js'

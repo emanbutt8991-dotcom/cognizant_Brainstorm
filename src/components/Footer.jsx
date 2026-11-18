@@ -1,3 +1,4 @@
+// Site footer: links to the public pages, the demo and the info dialogs.
 import { FOOTER_GROUPS, LEGAL_LINKS } from '../data/content.js'
 import { Logo } from './ui.jsx'
 

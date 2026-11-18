@@ -1,3 +1,4 @@
+// Public site navigation bar, with a mobile menu.
 import { useEffect, useState } from 'react'
 import { NAV_LINKS } from '../data/content.js'
 import { Button, Icon, Logo } from './ui.jsx'

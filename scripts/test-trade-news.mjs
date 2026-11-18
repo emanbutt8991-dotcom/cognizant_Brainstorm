@@ -5,14 +5,16 @@ import assert from 'node:assert/strict'
 import { buildGoogleNewsQuery, buildNewsQuery, cleanTitle, parseSeenDate, planningConsiderations, rankArticles } from '../src/utils/tradeNews.js'
 import { gdeltUrl } from '../src/utils/newsApi.js'
 
+// A tiny test runner: each check throws on failure, which stops the script with a non-zero exit.
 let passed = 0
 const check = (name, fn) => {
   fn()
   passed++
   console.log('  ok -', name)
 }
+// A fixed "now" keeps the freshness checks stable, and `art` makes a minimal GDELT-style article.
 const NOW = Date.UTC(2026, 9, 31, 12)
-const art = (title, seendate = '20261030T120000Z', url = `https://example.com/${encodeURIComponent(title)}`) => ({
+const art =(title, seendate = '20261030T120000Z', url = `https://example.com/${encodeURIComponent(title)}`) => ({
   url,
   title,
   seendate,

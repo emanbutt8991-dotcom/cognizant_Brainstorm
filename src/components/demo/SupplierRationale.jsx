@@ -1,3 +1,4 @@
+// Explains why an alternative supplier is suggested: route, lead time and score dots.
 import { ALT_CRITERIA } from '../../data/demoData.js'
 import { Badge, Icon } from '../ui.jsx'
 

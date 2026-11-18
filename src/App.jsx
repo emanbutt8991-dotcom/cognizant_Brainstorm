@@ -1,5 +1,7 @@
+// Top-level routes: the public website (landing, company, customer, tariffs, trial, pricing),
+// the guided demo, and the signed-in workspace under /app.
 import { Suspense, lazy, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { ErrorBoundary, Skeleton } from './components/app/kit.jsx'
 import CompanyPage from './components/CompanyPage.jsx'
 import CustomerPage from './components/CustomerPage.jsx'
@@ -32,7 +34,16 @@ const DelayResolve = lazy(() => import('./pages/app/DelayResolve.jsx'))
 const Analyst = lazy(() => import('./pages/app/Analyst.jsx'))
 const WorldSituation = lazy(() => import('./pages/app/WorldSituation.jsx'))
 
+const Agent = lazy(() => import('./pages/app/Agent.jsx'))
+const Activity = lazy(() => import('./pages/app/Activity.jsx'))
+const Approvals = lazy(() => import('./pages/app/Approvals.jsx'))
+const Inventory = lazy(() => import('./pages/app/Inventory.jsx'))
+const FinancialIntelligence = lazy(() => import('./pages/app/FinancialIntelligence.jsx'))
+
 const ROUTED_DIALOGS = { signIn: '/signin', signUp: '/signup', pricing: '/pricing' }
+
+/** The full Integrations marketplace. Settings → Integrations is the compact status summary. */
+const IntegrationsPage = lazy(() => import('./pages/app/Integrations.jsx'))
 
 /** Navigation shared by the marketing pages, which take callbacks rather than links. */
 function useSiteNav() {
@@ -135,6 +146,12 @@ export default function App() {
               <Route path="shipments/:id/resolve" element={<DelayResolve />} />
               <Route path="analyst" element={<Analyst />} />
               <Route path="world" element={<WorldSituation />} />
+              <Route path="agent" element={<Agent />} />
+              <Route path="activity" element={<Activity />} />
+              <Route path="approvals" element={<Approvals />} />
+              <Route path="integrations" element={<IntegrationsPage />} />
+              <Route path="inventory" element={<Inventory />} />
+              <Route path="finance" element={<FinancialIntelligence />} />
               <Route path="simulator" element={<Simulator />} />
               <Route path="canadian" element={<CanadianAlternatives />} />
               <Route path="global" element={<GlobalAlternatives />} />

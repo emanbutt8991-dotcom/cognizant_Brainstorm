@@ -1,3 +1,4 @@
+// Landing page sections: who it is for, personas, FAQ and newsletter sign-up.
 import { useId, useState } from 'react'
 import { FAQS, PERSONAS } from '../data/content.js'
 import { isValidEmail } from '../utils/validation.js'

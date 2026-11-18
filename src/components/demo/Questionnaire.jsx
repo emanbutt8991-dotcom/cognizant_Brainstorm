@@ -1,3 +1,4 @@
+// Demo step 1: the company questionnaire, including HS chapter suggestions for each product.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { HS_INDEX } from '../../data/hsChapters.js'
 import { suggestHsChapters } from '../../utils/hsChapters.js'

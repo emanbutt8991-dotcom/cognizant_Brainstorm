@@ -1,3 +1,4 @@
+// Demo step 3: "What if conditions change?", a delay scenario and how its estimate is built.
 import { money, percent } from '../../utils/format.js'
 import { Panel, StepHeading, StepNav } from './DemoWorkspace.jsx'
 import ScenarioControls from './ScenarioControls.jsx'

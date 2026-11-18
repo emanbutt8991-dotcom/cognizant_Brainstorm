@@ -27,3 +27,6 @@ Thumbs.db
 
 # Local design references, not part of the app
 demoui/
+
+# Server-side integration state (encrypted credentials, agent runs)
+.waymark-data/

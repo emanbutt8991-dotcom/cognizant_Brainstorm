@@ -8,6 +8,7 @@ import { modeLabel, statusLabel } from '../../engine/model.js'
 import { VEHICLES, useViewPrefs } from '../../state/viewPrefs.js'
 import { useWorkspace } from '../../state/WorkspaceContext.jsx'
 import { Icon } from '../ui.jsx'
+import { useTranslation } from '../../i18n/index.js'
 import { DemoTag, formatDate } from './kit.jsx'
 
 const HeroScene = lazy(() => import('./scene/HeroScene.jsx'))
@@ -26,6 +27,7 @@ function Glass({ className = '', children }) {
 
 export default function CommandHero({ onOpenShipment }) {
   const { model, isDemo, health, fx } = useWorkspace()
+  const { t } = useTranslation('pages')
   const { prefs, setVehicle } = useViewPrefs()
   const vehicle = VEHICLES.find((v) => v.id === prefs.vehicle) ?? VEHICLES[0]
   const shipment = featuredShipment(model.shipments, vehicle.mode)
@@ -46,7 +48,7 @@ export default function CommandHero({ onOpenShipment }) {
               <span className="block text-xs font-bold tracking-[0.3em] text-brand-300 uppercase">Waymark</span>{' '}
               <span className="wm-hero-title font-display block text-4xl leading-tight font-extrabold tracking-tight uppercase sm:text-5xl">Command Center</span>
             </h1>
-            <p className="mt-2 max-w-md text-sm text-slate-700 sm:text-base">Your global supply chain in one view. Estimated figures are labelled.</p>
+            <p className="mt-2 max-w-md text-sm text-slate-700 sm:text-base">{t('overview.subtitle')}</p>
             {isDemo && <div className="pointer-events-auto mt-3 inline-block"><DemoTag /></div>}
           </div>
 

@@ -82,9 +82,13 @@ export async function fetchWeather(config, { lat, lon }) {
     daily: 'weather_code,wind_speed_10m_max,precipitation_sum',
     forecast_days: '3',
     timezone: 'UTC',
+    // A commercial subscription uses its own host and an API key. Without one the key-less, non-commercial endpoint is used.
+    ...(config.openMeteoApiKey ? { apikey: config.openMeteoApiKey } : {}),
   })
-  const body = await fetchJson(`${config.openMeteoBaseUrl}/v1/forecast?${params}`, { timeoutMs: config.upstreamTimeoutMs })
+  const base = config.openMeteoApiKey ? config.openMeteoBaseUrl.replace('//api.', '//customer-api.') : config.openMeteoBaseUrl
+  const body = await fetchJson(`${base}/v1/forecast?${params}`, { timeoutMs: config.upstreamTimeoutMs })
   const d = body?.daily
+  if (!Array.isArray(d?.time) || !d.time.length) throw new UpstreamError('Forecast response contained no daily observations.', { code: 'bad_response' })
   const days = (d?.time ?? []).map((date, i) => ({
     date,
     weatherCode: d.weather_code?.[i],

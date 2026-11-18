@@ -1,3 +1,4 @@
+// Motion hooks: reveal on scroll, tweened numbers and the active step of the scroll story.
 import { useEffect, useRef, useState } from 'react'
 import { cinematicEnabled } from '../config/motion.js'
 

@@ -18,7 +18,10 @@ function activeHubs(model) {
   model.shipments.filter((s) => s.active).forEach((s) => {
     s.legs.forEach((leg) => {
       for (const end of [leg.from, leg.to]) {
-        if (end?.code) hubs.set(end.code, { ...end, count: (hubs.get(end.code)?.count ?? 0) + 1 })
+        if (end?.lat != null && end?.lon != null) {
+          const key = end.code ?? `${end.lat},${end.lon}`
+          hubs.set(key, { ...end, key, count: (hubs.get(key)?.count ?? 0) + 1 })
+        }
       }
     })
   })
@@ -28,7 +31,7 @@ function activeHubs(model) {
 export function useWeatherAlerts(model) {
   const [state, setState] = useState({ loading: true, alerts: [], error: null, checkedAt: null })
   const hubs = useMemo(() => (model ? activeHubs(model) : []), [model])
-  const key = hubs.map((h) => h.code).join(',')
+  const key = hubs.map((h) => h.key).join(',')
 
   useEffect(() => {
     let live = true
@@ -44,14 +47,18 @@ export function useWeatherAlerts(model) {
         loading: false,
         checkedAt: ok[0]?.weather.retrievedAt ?? null,
         checked: ok.length,
+        locations: ok.map(({hub,weather}) => ({ name: hub.name, days: weather.days, source: weather.source, at: weather.retrievedAt })),
+        unavailable: results.length - ok.length,
         error: ok.length ? null : 'Weather data is unavailable right now.',
         alerts: ok.flatMap(({ hub, weather }) =>
           weather.alerts.map((a) => ({
-            id: `wx-${hub.code}-${a.date}-${a.kind}`,
+            id: `wx-${hub.key}-${a.date}-${a.kind}`,
             type: 'weather',
             at: weather.retrievedAt,
             message: `${a.kind} forecast near ${hub.name} on ${a.date}`,
             source: weather.source,
+            date: a.date, hubCode: hub.code,
+            shipmentRefs: model.shipments.filter(s => s.active && s.legs.some(l => [l.from?.code, l.to?.code].includes(hub.code))).map(s => s.reference),
           })),
         ),
       })
@@ -84,7 +91,7 @@ export default function ActivityFeed({ limit = 8, onOpenShipment }) {
             {weather.alerts.map((a) => (
               <li key={a.id} className="text-sm text-slate-800">
                 {a.message}
-                <span className="ml-1"><Badge tone="amber">Potential disruption</Badge></span>
+                <span className="ms-1"><Badge tone="amber">Potential disruption</Badge></span>
                 <br />
                 <SourceLine source={a.source} at={a.at} />
               </li>
@@ -111,11 +118,11 @@ export default function ActivityFeed({ limit = 8, onOpenShipment }) {
               <span className="min-w-0">
                 <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{EVENT_LABELS[e.type] ?? 'Update'}</span>
                 {onOpenShipment && references.has(e.shipmentId) && (
-                  <button type="button" onClick={() => onOpenShipment(e.shipmentId)} className="ml-2 text-xs font-semibold text-brand-800 hover:underline">{references.get(e.shipmentId)}</button>
+                  <button type="button" onClick={() => onOpenShipment(e.shipmentId)} className="ms-2 text-xs font-semibold text-brand-800 hover:underline">{references.get(e.shipmentId)}</button>
                 )}
                 <br />
                 <span className="text-slate-800">{e.message}</span>
-                {e.simulated && <span className="ml-1"><Badge tone="amber">Simulated</Badge></span>}
+                {e.simulated && <span className="ms-1"><Badge tone="amber">Simulated</Badge></span>}
                 <br />
                 <SourceLine source={e.source} at={e.at} />
               </span>

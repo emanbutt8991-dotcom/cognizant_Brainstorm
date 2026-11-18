@@ -4,7 +4,7 @@ import { formatCo2e } from '../../../shared/emissions.js'
 import { MODE_COLORS } from '../map/mapData.js'
 
 const ACCENT = '#8b7bff'
-const axisTick = { fontSize: '0.6875rem', fill: '#98a4cb' }
+const axisTick = { fontSize: '0.6875rem', fill: 'var(--color-slate-500)' }
 
 function ChartTooltip({ active, payload, label, format }) {
   if (!active || !payload?.length) return null
@@ -25,7 +25,7 @@ export function RankedBars({ rows, format = formatCo2e, axisFormat = shortKg, he
     <div style={{ height: height ?? Math.max(120, data.length * 34 + 28) }} role="img" aria-label={data.map((d) => `${d.label}: ${format(d.kg ?? d.value)}`).join('; ')}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }} barCategoryGap="28%">
-          <CartesianGrid horizontal={false} stroke="#232e5b" />
+          <CartesianGrid horizontal={false} stroke="var(--color-slate-200)" />
           <XAxis type="number" tick={axisTick} tickFormatter={axisFormat} axisLine={false} tickLine={false} />
           <YAxis type="category" dataKey="label" width={labelWidth} tick={axisTick} axisLine={false} tickLine={false} interval={0} />
           <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} content={<ChartTooltip format={format} />} />
@@ -44,8 +44,8 @@ export function TimeBars({ rows, format = formatCo2e, height = 200 }) {
     <div style={{ height }} role="img" aria-label={rows.map((r) => `${r.name}: ${format(r.kg)}`).join('; ')}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ left: 0, right: 8, top: 8, bottom: 0 }} barCategoryGap="32%">
-          <CartesianGrid vertical={false} stroke="#232e5b" />
-          <XAxis dataKey="name" tick={axisTick} axisLine={{ stroke: '#3a4a82' }} tickLine={false} />
+          <CartesianGrid vertical={false} stroke="var(--color-slate-200)" />
+          <XAxis dataKey="name" tick={axisTick} axisLine={{ stroke: 'var(--color-slate-300)' }} tickLine={false} />
           <YAxis tick={axisTick} tickFormatter={shortKg} axisLine={false} tickLine={false} width={52} />
           <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} content={<ChartTooltip format={format} />} />
           <Bar dataKey="kg" radius={[4, 4, 0, 0]} maxBarSize={36} fill={ACCENT} isAnimationActive={false} />

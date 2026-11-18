@@ -1,3 +1,4 @@
+// Tariff explorer: classification, duties for a code and origin, upcoming changes and the effective duty.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { rankChapters, suggestHsCode } from '../utils/classify.js'
 import { currency } from '../utils/format.js'
